@@ -75,10 +75,15 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: assets
           merge-multiple: true
+      - name: Add the launchers (download once, they keep the app up to date)
+        run: |
+          (cd launcher && zip -X ../assets/MagnetStudio-Launcher-Windows.zip MagnetStudio.bat \
+                       && zip -X ../assets/MagnetStudio-Launcher-macOS.zip MagnetStudio.command)
       - name: Publish to the "latest" release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -90,6 +95,9 @@ jobs:
             --target "${{ github.sha }}" \
             --title "MagnetStudio – גרסה אחרונה (build ${{ github.run_number }})" \
             --notes "נבנה אוטומטית מ-commit ${{ github.sha }}.
+
+          **הכי נוח – מפעיל שמתעדכן לבד:** MagnetStudio-Launcher-Windows.zip / MagnetStudio-Launcher-macOS.zip.
+          לחלץ לתיקייה קבועה וללחוץ לחיצה כפולה בכל פעם; בודק עדכון, מוריד אם יש, ומפעיל.
 
           **Windows:** להוריד את MagnetStudio-Windows.zip → לחלץ → להפעיל MagnetStudio\\MagnetStudio.exe.
           בפעם הראשונה Windows עלול להציג 'Windows protected your PC' → More info → Run anyway (התוכנה לא חתומה).
@@ -131,4 +139,43 @@ jobs:
           export MAGNETSTUDIO_HOME="$RUNNER_TEMP/ms_home"
           ./run.command
           ./run.command
+          grep "exiting (code 0)" "$MAGNETSTUDIO_HOME/logs/magnetstudio.log"
+
+  # The launchers (launcher/) against the real release, from a folder with a space in its name:
+  # 1st run downloads + starts the app, 2nd run must say "up to date" and start it again.
+  launcher:
+    needs: release
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      QT_QPA_PLATFORM: offscreen
+      MAGNETSTUDIO_EXIT_AFTER_MS: "6000"
+      MAGNETSTUDIO_UPDATER_WAIT: "1"
+      MAGNETSTUDIO_UPDATER_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Windows
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          set "MAGNETSTUDIO_HOME=%RUNNER_TEMP%\ms_home"
+          set "D=%RUNNER_TEMP%\Magnet Studio Test"
+          mkdir "%D%" && copy launcher\MagnetStudio.bat "%D%\" || exit /b 1
+          call "%D%\MagnetStudio.bat" || exit /b 1
+          call "%D%\MagnetStudio.bat" > "%RUNNER_TEMP%\second.txt" || exit /b 1
+          type "%RUNNER_TEMP%\second.txt"
+          findstr /C:"up to date" "%RUNNER_TEMP%\second.txt" || exit /b 1
+          findstr /C:"exiting (code 0)" "%MAGNETSTUDIO_HOME%\logs\magnetstudio.log"
+      - name: macOS
+        if: runner.os == 'macOS'
+        run: |
+          export MAGNETSTUDIO_HOME="$RUNNER_TEMP/ms_home"
+          D="$RUNNER_TEMP/Magnet Studio Test"; mkdir -p "$D" && cp launcher/MagnetStudio.command "$D/"
+          "$D/MagnetStudio.command"
+          "$D/MagnetStudio.command" | tee "$RUNNER_TEMP/second.txt"
+          grep -q "up to date" "$RUNNER_TEMP/second.txt"
           grep "exiting (code 0)" "$MAGNETSTUDIO_HOME/logs/magnetstudio.log"
