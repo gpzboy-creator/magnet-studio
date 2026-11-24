@@ -2,7 +2,7 @@
 alpha hole punch, cloud fallback, worker threading, and designer integration.
 
 No network: the Gemini client is mocked (same call shape as google-genai).
-Run:  python tests/test_frame_generator.py
+Run:  pytest tests/test_frame_generator.py
 """
 import io
 import os
@@ -13,16 +13,14 @@ from pathlib import Path
 from types import SimpleNamespace as NS
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PIL import Image, ImageDraw  # noqa: E402
 
-import core.frame_generator as fg  # noqa: E402
-from core.frame_generator import (FrameDesign, SlotSpec, TextSpec, build_preset_template,  # noqa: E402
+import magnetstudio.core.frame_generator as fg  # noqa: E402
+from magnetstudio.core.frame_generator import (FrameDesign, SlotSpec, TextSpec, build_preset_template,  # noqa: E402
                                   design_to_template, generate_frame, parse_event,
                                   punch_alpha_holes, safe_margin, text_height)
-from core.templates import PhotoSlot, compose_magnet, load_template, render_overlay_frame, save_template  # noqa: E402
+from magnetstudio.core.templates import PhotoSlot, compose_magnet, load_template, render_overlay_frame, save_template  # noqa: E402
 
 OUT = ROOT / "output" / "tests"
 failures = 0
@@ -93,7 +91,7 @@ GOOD_DESIGN = FrameDesign(
 )
 
 
-def main() -> int:
+def _run() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
 
     print("1) Hebrew parsing (regex, offline)")
@@ -237,8 +235,8 @@ def main() -> int:
     check(errs == ["נא לתאר את האירוע"], "empty prompt → failed(str)")
 
     print("9) Designer integration")
-    from ui.designer import TemplateDesigner
-    from ui.frame_generator_dialog import FrameGeneratorDialog
+    from magnetstudio.ui.designer import TemplateDesigner
+    from magnetstudio.ui.frame_generator_dialog import FrameGeneratorDialog
     d = TemplateDesigner(profile="7.5x10")
     check(d.ai_btn.text() == "✨ מחולל AI", "toolbar button present")
     dlg = FrameGeneratorDialog("5x15_strip", {}, d)
@@ -272,5 +270,6 @@ def main() -> int:
     return 1 if failures else 0
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+def test_frame_generator():
+    """Scenario test – every ✔/✘ line is printed; pytest shows them when a check fails."""
+    assert _run() == 0, f"{failures} check(s) failed – see the ✘ lines in the captured output"

@@ -1,23 +1,22 @@
-"""MagnetStudio – entry point."""
+"""MagnetStudio – entry point (python -m magnetstudio, or the `magnetstudio` command)."""
 import logging
 import sys
 
 from PyQt6.QtCore import QtMsgType, qInstallMessageHandler
 from PyQt6.QtWidgets import QApplication
 
-from core.applog import install_exception_hooks, log_startup_banner, setup_logging
-from core.settings import load_settings, settings_path
-from ui.theme import apply_theme
-from ui.main_window import MainWindow
-
-__version__ = "0.9"
+from magnetstudio import __version__
+from magnetstudio.core.applog import install_exception_hooks, log_startup_banner, setup_logging
+from magnetstudio.core.settings import load_settings, settings_path
+from magnetstudio.ui.theme import apply_theme
+from magnetstudio.ui.main_window import MainWindow
 
 log = logging.getLogger("magnetstudio")
 
 
 def _setup_fonts(app) -> None:
     """Register assets/fonts with Qt; fetch the Hebrew bundle in the background if empty."""
-    from core import fonts
+    from magnetstudio.core import fonts
     fonts.register_qt_fonts()
     if not fonts.custom_font_families() and fonts.FontDownloadWorker is not None:
         log.info("assets/fonts is empty – downloading the default Hebrew font bundle")
@@ -28,7 +27,7 @@ def _setup_fonts(app) -> None:
 
 
 def _refresh_pickers() -> None:
-    from ui.designer import FontPicker
+    from magnetstudio.ui.designer import FontPicker
     FontPicker.refresh_all()
 
 

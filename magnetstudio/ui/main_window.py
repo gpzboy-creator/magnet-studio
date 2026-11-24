@@ -18,18 +18,18 @@ from PyQt6.QtWidgets import (QAbstractSpinBox, QApplication, QCheckBox, QComboBo
                              QMainWindow, QProgressBar, QPushButton, QSpinBox, QSplitter,
                              QToolButton, QVBoxLayout, QWidget)
 
-from core.framer import is_template, make_enhance_filter, render_magnet
-from core.printer import (DRY_RUN_PRINTER, PrintJob, PrintMode, PrintWorker,
+from magnetstudio.core.framer import is_template, make_enhance_filter, render_magnet
+from magnetstudio.core.printer import (DRY_RUN_PRINTER, PrintJob, PrintMode, PrintWorker,
                           get_available_printers, is_dry_run, is_printer_available)
-from core.settings import ROOT, TEMPLATES_DIR, save_settings
-from core.sizes import MAGNET_SIZES
-from core.templates import load_template
-from core.watcher import FolderWatcher
-from ui.designer import TemplateDesigner
-from ui.settings_dialog import SettingsDialog
-from ui.toast import Toast
-from ui.components.queue_panel import QueueItemStatus, QueuePanel
-from ui.widgets import QueueItem
+from magnetstudio.core.settings import ROOT, TEMPLATES_DIR, save_settings
+from magnetstudio.core.sizes import MAGNET_SIZES
+from magnetstudio.core.templates import load_template
+from magnetstudio.core.watcher import FolderWatcher
+from magnetstudio.ui.designer import TemplateDesigner
+from magnetstudio.ui.settings_dialog import SettingsDialog
+from magnetstudio.ui.toast import Toast
+from magnetstudio.ui.components.queue_panel import QueueItemStatus, QueuePanel
+from magnetstudio.ui.widgets import QueueItem
 
 log = logging.getLogger(__name__)
 
@@ -565,7 +565,7 @@ class MainWindow(QMainWindow):
             return
         path = self.frame_box.currentData()
         if is_template(path):
-            from core.templates import load_frame
+            from magnetstudio.core.templates import load_frame
             d = TemplateDesigner(load_frame(path), path, parent=self)
         else:
             d = TemplateDesigner(profile=self.size_box.currentData(), parent=self)

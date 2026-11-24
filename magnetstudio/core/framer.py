@@ -4,8 +4,8 @@ from typing import Callable
 
 from PIL import Image
 
-from core.image_processor import fit_to_size, load_image
-from core.sizes import DPI, get_size
+from magnetstudio.core.image_processor import fit_to_size, load_image
+from magnetstudio.core.sizes import DPI, get_size
 
 PhotoFilter = Callable[[Image.Image], Image.Image]
 
@@ -41,7 +41,7 @@ def render_magnet(photo_paths: list[str | Path] | str | Path, size_key: str,
     paths = [photo_paths] if isinstance(photo_paths, (str, Path)) else list(photo_paths)
     if is_template(frame_path):
         # a portrait/landscape pair picks the variant matching the photo (after EXIF rotation)
-        from core.templates import compose_auto, load_frame
+        from magnetstudio.core.templates import compose_auto, load_frame
         return compose_auto(load_frame(frame_path), [load_image(p) for p in paths],
                             photo_filter=photo_filter)
     photo = fit_to_size(load_image(paths[0]), get_size(size_key))
@@ -55,7 +55,7 @@ def make_enhance_filter(settings: dict) -> PhotoFilter | None:
     Cloud style is tried first when configured; otherwise / on failure the local LUT runs."""
     if not settings.get("enhance"):
         return None
-    from core.ai_enhancer import DEFAULT_GEMINI_MODEL, enhance, get_api_key
+    from magnetstudio.core.ai_enhancer import DEFAULT_GEMINI_MODEL, enhance, get_api_key
     preset = settings.get("enhance_preset") or "dye_sub"
     style = settings.get("cloud_style") or None
     key = get_api_key(settings)

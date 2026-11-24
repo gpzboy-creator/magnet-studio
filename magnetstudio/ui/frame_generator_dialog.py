@@ -8,11 +8,11 @@ from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFormLayout, QHBoxLayout, QLabel,
                              QLineEdit, QPlainTextEdit, QProgressBar, QPushButton, QVBoxLayout)
 
-from core.ai_enhancer import get_api_key
-from core.frame_generator import (DEFAULT_ART_MODEL, DEFAULT_CREDIT, DEFAULT_TEXT_MODEL, HAS_GENAI,
+from magnetstudio.core.ai_enhancer import get_api_key
+from magnetstudio.core.frame_generator import (DEFAULT_ART_MODEL, DEFAULT_CREDIT, DEFAULT_TEXT_MODEL, HAS_GENAI,
                                   HAS_PYDANTIC, FrameGeneratorWorker)
-from core.sizes import MAGNET_SIZES
-from core.templates import LANDSCAPE, PORTRAIT, Template, TemplatePair, compose_magnet
+from magnetstudio.core.sizes import MAGNET_SIZES
+from magnetstudio.core.templates import LANDSCAPE, PORTRAIT, Template, TemplatePair, compose_magnet
 
 EXAMPLES = [
     "חתונה של נועה ואורי 13.8.2026, זית עדין עם לב אדום",

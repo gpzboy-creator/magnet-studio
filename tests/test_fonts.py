@@ -1,7 +1,7 @@
 """Custom font check: registry, Qt registration, Hebrew rendering without glyph clipping
 at 300 DPI, live "add font", and the default-bundle downloader (simulated network).
 
-Run:  python tests/test_fonts.py            (MAGNET_ONLINE_TESTS=1 also hits Google Fonts)
+Run:  pytest tests/test_fonts.py
 """
 import os
 import shutil
@@ -11,13 +11,11 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PIL import Image, ImageDraw  # noqa: E402
 
-from core import fonts  # noqa: E402
-from core.templates import Template, TextLayer, compose_magnet, get_font, render_text_layer  # noqa: E402
+from magnetstudio.core import fonts  # noqa: E402
+from magnetstudio.core.templates import Template, TextLayer, compose_magnet, get_font, render_text_layer  # noqa: E402
 
 OUT = ROOT / "output" / "tests"
 failures = 0
@@ -57,7 +55,7 @@ def reference_ink(layer: TextLayer) -> int:
     return alpha_sum(canvas)
 
 
-def main() -> int:
+def _run() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
 
     print("1) Registry & family → file mapping")
@@ -163,7 +161,7 @@ def main() -> int:
         donor = next((p for fam in ("FreeSerif", "DejaVu Serif", "Liberation Serif")
                       if (p := (fonts.font_index().get(fam) or {}).get("Regular"))), None)
         check(donor is not None, f"donor font for the test: {Path(donor).name if donor else None}")
-        from ui.designer import FontPicker, TemplateDesigner
+        from magnetstudio.ui.designer import FontPicker, TemplateDesigner
         d = TemplateDesigner(profile="7.5x10")
         d.add_text()
         panel = d.props
@@ -253,5 +251,6 @@ def main() -> int:
     return 1 if failures else 0
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+def test_fonts():
+    """Scenario test – every ✔/✘ line is printed; pytest shows them when a check fails."""
+    assert _run() == 0, f"{failures} check(s) failed – see the ✘ lines in the captured output"

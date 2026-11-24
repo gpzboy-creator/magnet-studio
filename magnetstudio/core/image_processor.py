@@ -3,7 +3,7 @@ from pathlib import Path
 
 from PIL import Image, ImageOps
 
-from core.sizes import MagnetSize
+from magnetstudio.core.sizes import MagnetSize
 
 
 def load_image(path: str | Path) -> Image.Image:

@@ -1,6 +1,6 @@
 """Step 1 + 2: immediate (atomic) settings save after every print, and the application log.
 
-Run:  python tests/test_persistence.py
+Run:  pytest tests/test_persistence.py
 """
 import json
 import logging
@@ -13,18 +13,14 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 HOME = Path(tempfile.mkdtemp(prefix="ms_persist_"))
-os.environ["MAGNETSTUDIO_SETTINGS"] = str(HOME / "settings.json")
-os.environ["MAGNETSTUDIO_LOG_DIR"] = str(HOME / "logs")
 
 from PIL import Image  # noqa: E402
 from PyQt6.QtCore import QEventLoop, QTimer  # noqa: E402
 from PyQt6.QtWidgets import QApplication  # noqa: E402
 
-from core import applog, settings as settings_mod  # noqa: E402
-from core.settings import DEFAULTS, load_settings, save_settings, settings_path  # noqa: E402
+from magnetstudio.core import applog, settings as settings_mod  # noqa: E402
+from magnetstudio.core.settings import DEFAULTS, load_settings, save_settings, settings_path  # noqa: E402
 
 failures = 0
 
@@ -57,7 +53,9 @@ def run_child(code: str, timeout=60) -> subprocess.CompletedProcess:
                           capture_output=True, text=True, timeout=timeout)
 
 
-def main() -> int:
+def _run() -> int:
+    os.environ["MAGNETSTUDIO_SETTINGS"] = str(HOME / "settings.json")  # restored by conftest
+    os.environ["MAGNETSTUDIO_LOG_DIR"] = str(HOME / "logs")
     log_path = applog.setup_logging(directory=HOME / "logs", console=False)
     check(log_path == HOME / "logs" / "magnetstudio.log", f"log file: {log_path}")
     check(settings_path() == HOME / "settings.json", "MAGNETSTUDIO_SETTINGS redirects the settings file")
@@ -95,12 +93,12 @@ def main() -> int:
 
     print("3) Counter + setup on disk after every print (no app close)")
     app = QApplication.instance() or QApplication(sys.argv)
-    import main as app_main
+    from magnetstudio import app as app_main
     app_main._setup_fonts(app)
-    from ui.theme import apply_theme
+    from magnetstudio.ui.theme import apply_theme
     apply_theme(app)
-    from core.printer import DRY_RUN_PRINTER
-    from ui.main_window import MainWindow
+    from magnetstudio.core.printer import DRY_RUN_PRINTER
+    from magnetstudio.ui.main_window import MainWindow
 
     photos = []
     for i, c in enumerate([(200, 120, 90), (90, 140, 200)]):
@@ -157,7 +155,7 @@ def main() -> int:
     junk_frame = HOME / "junk.json"
     junk_frame.write_text("{oops", encoding="utf-8")
     win.settings["frame"] = str(junk_frame)
-    from core.printer import PrintJob, PrintMode
+    from magnetstudio.core.printer import PrintJob, PrintMode
     j_item = win.add_photo(photos[1], "manual", select=False)
     job = win._make_job(photos[1], 1, j_item.id)
     job.frame_path = str(junk_frame)
@@ -205,7 +203,7 @@ def main() -> int:
         import os, sys
         from PyQt6.QtCore import QTimer
         from PyQt6.QtWidgets import QApplication
-        from core import applog
+        from magnetstudio.core import applog
         applog.setup_logging(console=False)
         if sys.argv[-1] == "hooks":
             applog.install_exception_hooks(lambda m: print("TOAST:", m, flush=True))
@@ -227,7 +225,7 @@ def main() -> int:
           f"control – without hooks PyQt6 aborts the whole app (exit {without.returncode})")
     thread_code = """
         import threading
-        from core import applog
+        from magnetstudio.core import applog
         applog.setup_logging(console=False)
         applog.install_exception_hooks()
         t = threading.Thread(target=lambda: 1 / 0, name="watchdog-ish"); t.start(); t.join()
@@ -238,7 +236,7 @@ def main() -> int:
     check(r.returncode == 0 and "Uncaught exception in thread watchdog-ish" in child_log
           and "ZeroDivisionError" in child_log, "exceptions in background threads are logged")
 
-    print("8) Real startup: python main.py")
+    print("8) Real startup: python -m magnetstudio")
     start_code = """
         import sys, runpy
         from PyQt6.QtCore import QTimer
@@ -248,16 +246,17 @@ def main() -> int:
             orig(self, *a, **k)
             QTimer.singleShot(1500, QApplication.quit)
         QApplication.__init__ = init
-        sys.argv = ["main.py"]
+        sys.argv = ["magnetstudio"]
         try:
-            runpy.run_path("main.py", run_name="__main__")
+            runpy.run_module("magnetstudio", run_name="__main__")
         except SystemExit as e:
             print("EXIT", e.code)
         """
     r = run_child(start_code)
     child_log = (HOME / "child_logs" / "magnetstudio.log").read_text(encoding="utf-8")
     check("EXIT 0" in r.stdout, f"starts and exits cleanly ({r.stdout.strip() or r.stderr[-200:]})")
-    for needle in ("MagnetStudio 0.9 starting", "PyQt6 ", "Settings: ", "Printers found:", "exiting (code 0)"):
+    from magnetstudio import __version__
+    for needle in (f"MagnetStudio {__version__} starting", "PyQt6 ", "Settings: ", "Printers found:", "exiting (code 0)"):
         check(needle in child_log, f"startup log: '{needle.strip()}'")
     check(json.loads((HOME / "child_settings.json").read_text(encoding="utf-8"))["magnet_size"] == "7.5x10",
           "settings written on close")
@@ -270,5 +269,6 @@ def main() -> int:
     return 1 if failures else 0
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+def test_persistence():
+    """Scenario test – every ✔/✘ line is printed; pytest shows them when a check fails."""
+    assert _run() == 0, f"{failures} check(s) failed – see the ✘ lines in the captured output"

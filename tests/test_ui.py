@@ -1,6 +1,6 @@
 """Dark UI check: theme, top-bar status widgets, queue cards and the print flow (Dry Run).
 
-Run:  python tests/test_ui.py
+Run:  pytest tests/test_ui.py
 """
 import os
 import sys
@@ -9,13 +9,6 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-# never touch the real settings / log while testing (MainWindow saves after every print)
-import tempfile as _tf  # noqa: E402
-_TEST_HOME = _tf.mkdtemp(prefix="ms_test_")
-os.environ.setdefault("MAGNETSTUDIO_SETTINGS", os.path.join(_TEST_HOME, "settings.json"))
-os.environ.setdefault("MAGNETSTUDIO_LOG_DIR", os.path.join(_TEST_HOME, "logs"))
 
 from PIL import Image  # noqa: E402
 from PyQt6.QtCore import QEventLoop, Qt, QTimer  # noqa: E402
@@ -39,15 +32,15 @@ def wait_until(cond, timeout=20.0):
     return cond()
 
 
-def main() -> int:
+def _run() -> int:
     app = QApplication.instance() or QApplication(sys.argv)
-    import main as app_main
+    from magnetstudio import app as app_main
     app_main._setup_fonts(app)
-    from ui import theme
+    from magnetstudio.ui import theme
     theme.apply_theme(app)
 
     print("1) Theme (AI Studio design tokens)")
-    from ui.theme import ThemeColors
+    from magnetstudio.ui.theme import ThemeColors
     qss = app.styleSheet()
     for token in (ThemeColors.BG_ROOT, ThemeColors.BG_CARD, ThemeColors.BORDER_SUBTLE, ThemeColors.ACCENT_CYAN):
         check(token in qss, f"QSS uses {token}")
@@ -56,10 +49,10 @@ def main() -> int:
     check(app.layoutDirection() == Qt.LayoutDirection.RightToLeft, "app is right-to-left (Hebrew)")
     check(app.style().metaObject().className() == "QStyleSheetStyle", "stylesheet active on top of Fusion")
 
-    from core.printer import DRY_RUN_PRINTER
-    from core.settings import load_settings
-    from ui.components.queue_panel import QueueCardWidget, QueueItemStatus
-    from ui.main_window import MainWindow
+    from magnetstudio.core.printer import DRY_RUN_PRINTER
+    from magnetstudio.core.settings import load_settings
+    from magnetstudio.ui.components.queue_panel import QueueCardWidget, QueueItemStatus
+    from magnetstudio.ui.main_window import MainWindow
 
     tmp = Path(tempfile.mkdtemp(prefix="msui_"))
     photos = []
@@ -151,5 +144,6 @@ def main() -> int:
     return 1 if failures else 0
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+def test_ui():
+    """Scenario test – every ✔/✘ line is printed; pytest shows them when a check fails."""
+    assert _run() == 0, f"{failures} check(s) failed – see the ✘ lines in the captured output"

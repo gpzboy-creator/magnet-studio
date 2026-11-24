@@ -24,8 +24,9 @@ from pathlib import Path
 
 from PIL import ImageFont, features
 
-ROOT = Path(__file__).resolve().parent.parent
-FONTS_DIR = ROOT / "assets" / "fonts"
+from magnetstudio.paths import BUNDLED_FONTS_DIR
+
+FONTS_DIR = BUNDLED_FONTS_DIR
 FONT_EXTS = (".ttf", ".otf")
 SYSTEM_EXTS = (".ttf", ".otf", ".ttc")
 HAS_RAQM = features.check_feature("raqm")

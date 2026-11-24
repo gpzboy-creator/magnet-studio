@@ -2,7 +2,7 @@
 from PyQt6.QtWidgets import (QComboBox, QDialog, QDialogButtonBox, QFormLayout, QLabel,
                              QLineEdit, QPushButton)
 
-from core.ai_enhancer import CLOUD_STYLES, DEFAULT_GEMINI_MODEL, PRESET_LABELS
+from magnetstudio.core.ai_enhancer import CLOUD_STYLES, DEFAULT_GEMINI_MODEL, PRESET_LABELS
 
 _CLOUD_LABELS = {"print_ready": "מוכן להדפסה", "warm_party": "מסיבה חמימה", "bw_classic": "שחור-לבן קלאסי"}
 
@@ -42,7 +42,7 @@ class SettingsDialog(QDialog):
         form.addRow(QLabel("אם אין אינטרנט או שהענן נכשל – המערכת עוברת אוטומטית ל-LUT המקומי.\n"
                            "סגנון ענן מוסיף כמה שניות לכל תמונה."))
 
-        from core.applog import log_file
+        from magnetstudio.core.applog import log_file
         logs_btn = QPushButton("📄 פתח תיקיית לוגים")
         logs_btn.setToolTip(str(log_file()))
         logs_btn.clicked.connect(self._open_logs)
@@ -57,7 +57,7 @@ class SettingsDialog(QDialog):
     def _open_logs():
         from PyQt6.QtCore import QUrl
         from PyQt6.QtGui import QDesktopServices
-        from core.applog import log_dir
+        from magnetstudio.core.applog import log_dir
         d = log_dir()
         d.mkdir(parents=True, exist_ok=True)
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(d)))

@@ -1,7 +1,7 @@
 """Template check: load the 7.5x10 sample (Hebrew text + 2 photo slots), render at 300 DPI,
 verify text alignment and slot transparency, and drive the designer headlessly.
 
-Run:  python tests/test_templates.py      → renders into output/tests/
+Run:  pytest tests/test_templates.py
 """
 import os
 import sys
@@ -9,21 +9,16 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-# never touch the real settings / log while testing (MainWindow saves after every print)
-import tempfile as _tf  # noqa: E402
-_TEST_HOME = _tf.mkdtemp(prefix="ms_test_")
-os.environ.setdefault("MAGNETSTUDIO_SETTINGS", os.path.join(_TEST_HOME, "settings.json"))
-os.environ.setdefault("MAGNETSTUDIO_LOG_DIR", os.path.join(_TEST_HOME, "logs"))
 
 from PIL import Image, ImageDraw  # noqa: E402
 
-from core.templates import (HAS_RAQM, PhotoSlot, Template, TextLayer, compose_magnet,  # noqa: E402
+from magnetstudio.core.templates import (HAS_RAQM, PhotoSlot, Template, TextLayer, compose_magnet,  # noqa: E402
                             load_template, render_overlay_frame, render_text_layer,
                             save_template, template_to_dict)
 
-SAMPLE = ROOT / "assets" / "templates" / "sample_wedding_7.5x10.json"
+from magnetstudio.paths import BUNDLED_TEMPLATES_DIR  # noqa: E402
+
+SAMPLE = BUNDLED_TEMPLATES_DIR / "sample_wedding_7.5x10.json"
 OUT = ROOT / "output" / "tests"
 failures = 0
 
@@ -57,7 +52,7 @@ def ink_bbox(img: Image.Image):
     return img.getchannel("A").getbbox()
 
 
-def main() -> int:
+def _run() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     print(f"RTL engine: {'libraqm (full bidi)' if HAS_RAQM else 'python-bidi fallback'}")
 
@@ -102,7 +97,7 @@ def main() -> int:
     try:
         from bidi import get_display
         from PIL import ImageChops, ImageFont
-        from core.templates import get_font
+        from magnetstudio.core.templates import get_font
         f = get_font("", 60)
         a = render_text_layer(TextLayer("שלום עולם", font_size=60, color="#000000FF"))
         b = Image.new("RGBA", a.size, (0, 0, 0, 0))
@@ -132,9 +127,9 @@ def main() -> int:
     print("5) Designer (headless)")
     from PyQt6.QtWidgets import QApplication
     app = QApplication.instance() or QApplication(sys.argv)
-    from core.settings import load_settings
-    from ui.designer import GraphicItem, SlotItem, TemplateDesigner, TextItem
-    from ui.main_window import MainWindow
+    from magnetstudio.core.settings import load_settings
+    from magnetstudio.ui.designer import GraphicItem, SlotItem, TemplateDesigner, TextItem
+    from magnetstudio.ui.main_window import MainWindow
 
     win = MainWindow(load_settings())
     d = TemplateDesigner(load_template(SAMPLE), SAMPLE)
@@ -173,5 +168,6 @@ def main() -> int:
     return 1 if failures else 0
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+def test_templates():
+    """Scenario test – every ✔/✘ line is printed; pytest shows them when a check fails."""
+    assert _run() == 0, f"{failures} check(s) failed – see the ✘ lines in the captured output"

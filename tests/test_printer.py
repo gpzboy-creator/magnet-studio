@@ -1,6 +1,6 @@
 """Quick printer check: detection + non-blocking spool test (dry run to PDF).
 
-Run:  python tests/test_printer.py
+Run:  pytest tests/test_printer.py
 Works without a physical printer (uses the PDF dry-run target).
 """
 import os
@@ -9,16 +9,14 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")  # headless CI / no display
 
 from PIL import Image, ImageDraw  # noqa: E402
 from PyQt6.QtCore import QEventLoop, QTimer  # noqa: E402
 from PyQt6.QtWidgets import QApplication  # noqa: E402
 
-from core.printer import (DRY_RUN_PRINTER, PrintJob, PrintMode, PrintWorker,  # noqa: E402
+from magnetstudio.core.printer import (DRY_RUN_PRINTER, PrintJob, PrintMode, PrintWorker,  # noqa: E402
                           get_available_printers, is_printer_available)
-from core.sizes import MAGNET_SIZES  # noqa: E402
+from magnetstudio.core.sizes import MAGNET_SIZES  # noqa: E402
 
 OUT = ROOT / "output" / "tests"
 
@@ -59,7 +57,7 @@ def page_count(pdf: Path) -> int:
     return pdf.read_bytes().count(b"/Type /Page\n") or pdf.read_bytes().count(b"/Type /Page")
 
 
-def main() -> int:
+def _run() -> int:
     app = QApplication(sys.argv)  # noqa: F841
     failures = 0
 
@@ -96,5 +94,6 @@ def main() -> int:
     return 1 if failures else 0
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+def test_printer():
+    """Scenario test – every ✔/✘ line is printed; pytest shows them when a check fails."""
+    assert _run() == 0, f"{failures} check(s) failed – see the ✘ lines in the captured output"

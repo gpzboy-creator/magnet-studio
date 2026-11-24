@@ -26,7 +26,7 @@ from functools import lru_cache
 
 from PIL import Image
 
-from core.sizes import DPI
+from magnetstudio.core.sizes import DPI
 
 log = logging.getLogger(__name__)
 

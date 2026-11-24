@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "magnetstudio"
+dynamic = ["version"]
+description = "Desktop app for framing and printing event photo magnets (Windows & macOS)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Proprietary" }
+authors = [{ name = "שחר לוי גונן" }]
+dependencies = [
+    "PyQt6>=6.6",
+    "Pillow>=10.1",
+    "watchdog>=4.0",
+    "python-bidi>=0.4",      # Hebrew fallback when Pillow lacks libraqm (common on Windows)
+]
+
+[project.optional-dependencies]
+ai = [                        # Gemini frame generator / cloud styles (the app works without them)
+    "google-genai>=1.20",
+    "pydantic>=2",
+]
+dev = [
+    "pytest>=8",
+    "numpy",                  # tests only
+    "pypdf",                  # tests only
+    "fonttools",              # converts variable fonts when downloading the font bundle
+]
+
+[project.gui-scripts]
+magnetstudio = "magnetstudio.app:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "magnetstudio.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["magnetstudio*"]
+
+[tool.setuptools.package-data]
+magnetstudio = ["assets/**/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra -p no:logging"   # the app has its own log; keeps failure output readable

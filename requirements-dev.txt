@@ -1,4 +1,1 @@
--r requirements.txt
-numpy     # tests only
-pypdf     # tests only
-fonttools # converts variable fonts to static Regular/Bold when downloading the font bundle
+-e .[ai,dev]

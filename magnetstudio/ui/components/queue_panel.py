@@ -36,8 +36,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from ui.theme import ThemeColors
-from ui.widgets import ltr, make_thumb
+from magnetstudio.ui.theme import ThemeColors
+from magnetstudio.ui.widgets import ltr, make_thumb
 
 
 class QueueItemStatus(Enum):

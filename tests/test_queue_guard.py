@@ -1,6 +1,6 @@
 """Double-tap confirmation guard for keyboard reprints (Space) in the print queue.
 
-Run:  python tests/test_queue_guard.py
+Run:  pytest tests/test_queue_guard.py
 """
 import os
 import sys
@@ -9,13 +9,6 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-# never touch the real settings / log while testing (MainWindow saves after every print)
-import tempfile as _tf  # noqa: E402
-_TEST_HOME = _tf.mkdtemp(prefix="ms_test_")
-os.environ.setdefault("MAGNETSTUDIO_SETTINGS", os.path.join(_TEST_HOME, "settings.json"))
-os.environ.setdefault("MAGNETSTUDIO_LOG_DIR", os.path.join(_TEST_HOME, "logs"))
 
 from PIL import Image  # noqa: E402
 from PyQt6.QtCore import QEventLoop, Qt, QTimer  # noqa: E402
@@ -44,17 +37,17 @@ def wait_until(cond, timeout=20.0) -> bool:
     return cond()
 
 
-def main() -> int:
+def _run() -> int:
     app = QApplication.instance() or QApplication(sys.argv)
-    import main as app_main
+    from magnetstudio import app as app_main
     app_main._setup_fonts(app)
-    from ui.theme import apply_theme
+    from magnetstudio.ui.theme import apply_theme
     apply_theme(app)
 
-    from core.printer import DRY_RUN_PRINTER
-    from core.settings import load_settings
-    from ui.components.queue_panel import REPRINT_CONFIRM_MS, QueueItemStatus, ReprintGuard
-    from ui.main_window import MainWindow
+    from magnetstudio.core.printer import DRY_RUN_PRINTER
+    from magnetstudio.core.settings import load_settings
+    from magnetstudio.ui.components.queue_panel import REPRINT_CONFIRM_MS, QueueItemStatus, ReprintGuard
+    from magnetstudio.ui.main_window import MainWindow
 
     print("1) ReprintGuard (unit)")
     g = ReprintGuard(window_ms=300)
@@ -225,5 +218,6 @@ def main() -> int:
     return 1 if failures else 0
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+def test_queue_guard():
+    """Scenario test – every ✔/✘ line is printed; pytest shows them when a check fails."""
+    assert _run() == 0, f"{failures} check(s) failed – see the ✘ lines in the captured output"

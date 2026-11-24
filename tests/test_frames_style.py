@@ -4,7 +4,7 @@ in portrait and landscape, with automatic orientation selection.
 Builds the "זית עדין" (subtle olive) sample, renders a landscape and a portrait dummy photo through it,
 and checks readability, credit sharpness and a clean photo window.
 
-Run:  python tests/test_frames_style.py      → renders into output/tests/
+Run:  pytest tests/test_frames_style.py
 """
 import os
 import sys
@@ -12,15 +12,13 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PIL import Image, ImageDraw, ImageFilter, ImageOps  # noqa: E402
 
-from core.frame_generator import (DEFAULT_CREDIT, build_frame_pair, contrast, safe_margin,  # noqa: E402
+from magnetstudio.core.frame_generator import (DEFAULT_CREDIT, build_frame_pair, contrast, safe_margin,  # noqa: E402
                                   text_height)
-from core.framer import render_magnet  # noqa: E402
-from core.templates import (LANDSCAPE, PORTRAIT, TemplatePair, compose_auto, export_frame_png,  # noqa: E402
+from magnetstudio.core.framer import render_magnet  # noqa: E402
+from magnetstudio.core.templates import (LANDSCAPE, PORTRAIT, TemplatePair, compose_auto, export_frame_png,  # noqa: E402
                             load_frame, parse_color, render_credit_layer, render_overlay_frame, save_frame)
 
 OUT = ROOT / "output" / "tests"
@@ -61,7 +59,7 @@ def px(im: Image.Image) -> list:
     return list(im.get_flattened_data() if hasattr(im, "get_flattened_data") else im.getdata())
 
 
-def main() -> int:
+def _run() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
 
     print("1) Sample template – 'זית עדין' (names + red heart + date + photographer credit)")
@@ -140,7 +138,7 @@ def main() -> int:
     for name, expect in (("land.jpg", (1181, 886)), ("port.jpg", (886, 1181)), ("port_exif.jpg", (886, 1181))):
         img = render_magnet(tmp / name, "7.5x10", pair_path)
         check(img.size == expect, f"{name:14s} → {img.size} ({'landscape' if expect[0] > expect[1] else 'portrait'} frame)")
-    from core.printer import PrintJob, PrintMode
+    from magnetstudio.core.printer import PrintJob, PrintMode
     job = PrintJob(mode=PrintMode.THERMAL, printer_name="", photo_paths=[str(tmp / "land.jpg")],
                    magnet_size="7.5x10", frame_path=str(pair_path))
     check(job.render_images()[0].size == (1181, 886), "print jobs pick the variant too")
@@ -202,7 +200,7 @@ def main() -> int:
     check(isinstance(back, TemplatePair) and same, "pair saved/loaded as one JSON, renders identical")
     from PyQt6.QtWidgets import QApplication
     app = QApplication.instance() or QApplication(sys.argv)  # noqa: F841
-    from ui.designer import CreditItem, TemplateDesigner
+    from magnetstudio.ui.designer import CreditItem, TemplateDesigner
     d = TemplateDesigner(back, pair_path)
     check(d.orient_box.isEnabled() and d.template.orientation == PORTRAIT, "designer opens the pair (portrait first)")
     check(any(isinstance(i, CreditItem) for i in d.scene.items()), "credit shown on the canvas")
@@ -232,5 +230,6 @@ def main() -> int:
     return 1 if failures else 0
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+def test_frames_style():
+    """Scenario test – every ✔/✘ line is printed; pytest shows them when a check fails."""
+    assert _run() == 0, f"{failures} check(s) failed – see the ✘ lines in the captured output"

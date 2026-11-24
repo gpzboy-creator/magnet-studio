@@ -10,7 +10,7 @@ dist/
 
 # App output / local state (never commit)
 output/
-assets/templates/_generated/
+**/_generated/
 config/settings.json.corrupt-*
 *.log
 

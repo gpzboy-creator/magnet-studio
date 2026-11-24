@@ -26,10 +26,9 @@ from pathlib import Path
 
 from PIL import Image, ImageChops, ImageDraw, ImageOps
 
-from core.sizes import DPI, MAGNET_SIZES, get_size
+from magnetstudio.core.sizes import DPI, MAGNET_SIZES, get_size
 
 TEMPLATE_VERSION = 2
-ROOT = Path(__file__).resolve().parent.parent
 
 _RTL_CHARS = re.compile(r"[\u0590-\u05FF\u0600-\u06FF\uFB1D-\uFDFF\uFE70-\uFEFF]")
 
@@ -330,7 +329,7 @@ def load_template(path: str | Path, orientation: str = PORTRAIT) -> Template:
 # ============================================================== fonts
 # (font discovery / Qt registration / Pillow mapping live in core/fonts.py)
 
-from core.fonts import (DEFAULT_FAMILIES, FONTS_DIR, HAS_RAQM, available_font_families,  # noqa: E402,F401
+from magnetstudio.core.fonts import (DEFAULT_FAMILIES, FONTS_DIR, HAS_RAQM, available_font_families,  # noqa: E402,F401
                         font_index, get_font, resolve_font_path)
 
 

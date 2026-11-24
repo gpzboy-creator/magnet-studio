@@ -23,9 +23,9 @@ from typing import Callable, Literal
 
 from PIL import Image, ImageChops, ImageDraw, ImageOps
 
-from core.settings import TEMPLATES_DIR
-from core.sizes import cm_to_px
-from core.templates import (LANDSCAPE, PORTRAIT, CanvasConfig, CreditLayer, GraphicLayer, PhotoSlot,
+from magnetstudio.core.settings import TEMPLATES_DIR
+from magnetstudio.core.sizes import cm_to_px
+from magnetstudio.core.templates import (LANDSCAPE, PORTRAIT, CanvasConfig, CreditLayer, GraphicLayer, PhotoSlot,
                             Template, TemplatePair, TextLayer, font_index, get_font, parse_color)
 
 log = logging.getLogger(__name__)

@@ -330,9 +330,10 @@ def get_theme_qss() -> str:
 
 C = ThemeColors
 
-from pathlib import Path as _Path
 
-_ICONS = (_Path(__file__).resolve().parent.parent / "assets" / "ui").as_posix()
+from magnetstudio.paths import UI_ICONS_DIR as _UI_ICONS_DIR  # noqa: E402
+
+_ICONS = _UI_ICONS_DIR.as_posix()
 
 # Labels / checkboxes must not repaint BG_ROOT on top of cards (the QWidget rule above would).
 APP_QSS = f"""

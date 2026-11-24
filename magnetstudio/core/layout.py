@@ -10,7 +10,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-from core.sizes import A4_PX, DPI, cm_to_px
+from magnetstudio.core.sizes import A4_PX, DPI, cm_to_px
 
 DEFAULT_MARGIN_CM = 0.3   # printer safe area around the page
 DEFAULT_GAP_CM = 0.2      # space between magnets

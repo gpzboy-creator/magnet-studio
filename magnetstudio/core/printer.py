@@ -21,8 +21,8 @@ from PyQt6.QtCore import QMarginsF, QRectF, QSizeF, QThread, pyqtSignal
 from PyQt6.QtGui import QImage, QPageLayout, QPageSize, QPainter
 from PyQt6.QtPrintSupport import QPrinter, QPrinterInfo
 
-from core.layout import build_a4_sheets
-from core.sizes import DPI, px_to_cm
+from magnetstudio.core.layout import build_a4_sheets
+from magnetstudio.core.sizes import DPI, px_to_cm
 
 log = logging.getLogger(__name__)
 
@@ -202,7 +202,7 @@ class PrintJob:
     def render_images(self) -> list[Image.Image]:
         imgs = list(self.images)
         if self.photo_paths:
-            from core.framer import is_template, render_magnet
+            from magnetstudio.core.framer import is_template, render_magnet
             if is_template(self.frame_path):
                 # one magnet per job; all photos fill the template's slots (strip)
                 imgs.append(render_magnet(self.photo_paths, self.magnet_size, self.frame_path,

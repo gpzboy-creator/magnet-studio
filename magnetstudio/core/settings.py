@@ -16,9 +16,11 @@ from pathlib import Path
 
 log = logging.getLogger(__name__)
 
-ROOT = Path(__file__).resolve().parent.parent
-SETTINGS_PATH = ROOT / "config" / "settings.json"
-TEMPLATES_DIR = ROOT / "assets" / "templates"
+from magnetstudio.paths import BUNDLED_TEMPLATES_DIR, LEGACY_SETTINGS
+
+ROOT = LEGACY_SETTINGS.parent.parent          # repo root (output/ lives here for now)
+SETTINGS_PATH = LEGACY_SETTINGS
+TEMPLATES_DIR = BUNDLED_TEMPLATES_DIR
 
 DEFAULTS = {
     "magnet_size": "7.5x10",

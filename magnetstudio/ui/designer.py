@@ -20,15 +20,15 @@ from PyQt6.QtWidgets import (QCheckBox, QColorDialog, QComboBox, QDialog, QDockW
                              QPlainTextEdit, QPushButton, QScrollArea, QSpinBox, QToolBar,
                              QVBoxLayout, QWidget)
 
-from core import fonts as font_registry
-from core.image_processor import load_image
-from core.settings import TEMPLATES_DIR, load_settings
-from core.templates import (LANDSCAPE, PORTRAIT, SLOT_PRESETS, CanvasConfig, CreditLayer, GraphicLayer,
+from magnetstudio.core import fonts as font_registry
+from magnetstudio.core.image_processor import load_image
+from magnetstudio.core.settings import TEMPLATES_DIR, load_settings
+from magnetstudio.core.templates import (LANDSCAPE, PORTRAIT, SLOT_PRESETS, CanvasConfig, CreditLayer, GraphicLayer,
                             PhotoSlot, Template, TemplatePair, TextLayer, compose_magnet,
                             export_frame_png, load_frame, parse_color, render_credit_layer,
                             render_graphic_layer, render_overlay_frame, render_text_layer,
                             save_frame, slot_preset_layout)
-from core.sizes import MAGNET_SIZES
+from magnetstudio.core.sizes import MAGNET_SIZES
 
 PHOTO_PLANE_Z = -0.5   # slots sit between z<0 layers (behind photo) and z>=0 layers
 
@@ -669,7 +669,7 @@ class TemplateDesigner(QMainWindow):
         tb.addWidget(self.orient_box)
         tb.addSeparator()
 
-        from ui.frame_generator_dialog import ACCENT_BUTTON_CSS
+        from magnetstudio.ui.frame_generator_dialog import ACCENT_BUTTON_CSS
         self.ai_btn = QPushButton("✨ מחולל AI")
         self.ai_btn.setToolTip("צור מסגרת מתיאור חופשי (Gemini / אופליין)")
         self.ai_btn.setStyleSheet(ACCENT_BUTTON_CSS)
@@ -1022,7 +1022,7 @@ class TemplateDesigner(QMainWindow):
 
     # ---- AI generator
     def open_ai_generator(self):
-        from ui.frame_generator_dialog import FrameGeneratorDialog
+        from magnetstudio.ui.frame_generator_dialog import FrameGeneratorDialog
         settings = getattr(self.parent(), "settings", None) or load_settings()
         dlg = FrameGeneratorDialog(self.template.canvas.profile, settings, self)
         dlg.template_ready.connect(self.apply_generated)

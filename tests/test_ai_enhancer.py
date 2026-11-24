@@ -1,6 +1,6 @@
 """Enhancer check: LUT correctness, speed benchmark, memory leak check, cloud fallback, worker.
 
-Run:  python tests/test_ai_enhancer.py
+Run:  pytest tests/test_ai_enhancer.py
 """
 import gc
 import os
@@ -10,14 +10,12 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import numpy as np  # noqa: E402  (test-only: builds realistic photo-like pixels fast)
 from PIL import Image  # noqa: E402
 
-import core.ai_enhancer as ae  # noqa: E402
-from core.ai_enhancer import PRESETS, build_lut, enhance, enhance_local  # noqa: E402
+import magnetstudio.core.ai_enhancer as ae  # noqa: E402
+from magnetstudio.core.ai_enhancer import PRESETS, build_lut, enhance, enhance_local  # noqa: E402
 
 BUDGET_MS = 150
 failures = 0
@@ -63,7 +61,7 @@ def bench(img, runs=9) -> float:
     return statistics.median(ts)
 
 
-def main() -> int:
+def _run() -> int:
     print("1) LUT correctness")
     for name, p in PRESETS.items():
         curve = build_lut(p)[:256]
@@ -138,7 +136,7 @@ def main() -> int:
     check(ticks[0] > 0, f"GUI loop kept running ({ticks[0]} ticks)")
 
     print("6) Pipeline: crop → enhance → frame keeps 300 DPI")
-    from core.framer import make_enhance_filter, render_magnet
+    from magnetstudio.core.framer import make_enhance_filter, render_magnet
     out_dir = ROOT / "output" / "tests"
     out_dir.mkdir(parents=True, exist_ok=True)
     photo = out_dir / "enh_src.jpg"
@@ -157,5 +155,6 @@ def main() -> int:
     return 1 if failures else 0
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+def test_ai_enhancer():
+    """Scenario test – every ✔/✘ line is printed; pytest shows them when a check fails."""
+    assert _run() == 0, f"{failures} check(s) failed – see the ✘ lines in the captured output"
