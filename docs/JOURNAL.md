@@ -8,6 +8,20 @@
 
 ## רשומות (החדשה ראשונה)
 
+### 24.11.2026 (המשך) – מפעיל שמתעדכן לבד (בלי Python, בלי GitHub Desktop)
+**רקע:** שחר לא יכול להתקין GitHub Desktop, ורוצה לבדוק גרסאות בלי להוריד ידנית כל פעם.
+בחר: אפליקציה מוכנה (בלי Python) + מפתח GitHub לקריאה בלבד.
+**נעשה:** `launcher/MagnetStudio.bat` (קובץ אחד: batch + PowerShell מובנה ב-Windows) ו-`launcher/MagnetStudio.command`
+(Mac: curl + JavaScript של macOS לפענוח JSON + Keychain). בכל הפעלה: בודק את שחרור `latest`, מוריד ומחליף אם
+יש build חדש (מזהה ב-`MagnetStudio-app/build-id.txt`), ומפעיל. בלי אינטרנט → מפעיל את מה שיש.
+המפתח נשאל פעם אחת: Windows – מוצפן ב-DPAPI למשתמש (`%LOCALAPPDATA%\MagnetStudio\updater-token.dat`);
+Mac – Keychain. מפתח שנדחה (401/403/404) → מבקש חדש. המפעילים מצורפים לשחרור כ-zip.
+**CI:** job `launcher` – מריץ את שניהם מול השחרור האמיתי מתיקייה עם רווח, פעמיים (הורדה, ואז "up to date").
+השחרור מתעדכן במקום (תג זז, `--clobber`) ולא נמחק – פלטפורמה שה-build שלה נכשל שומרת את הגרסה הקודמת.
+**נמצא בדרך:** `#>` בשורת ההערה הראשונה סגר את בלוק ההערה של PowerShell מוקדם. GitHub לפעמים לא מקצה
+מכונת Mac (capacity) – לכן הפרסום כבר לא תלוי בהצלחת כל הפלטפורמות.
+**אומת:** CI – Windows: הורדה 61MB, פריסה, הפעלה, ובהרצה שנייה "up to date". Mac: עבר ב-run הקודם.
+
 ### 24.11.2026 (המשך) – הרצה ישירות מהריפו, בלי התקנה
 **רקע:** שחר רוצה להפעיל ישירות מהריפו, בלי להתקין.
 **נעשה:** `run.bat` (Windows), `run.command` (Mac, לחיצה כפולה), `run.sh` (Linux) + `packaging/ensure_env.py`.

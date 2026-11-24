@@ -43,6 +43,7 @@ pyproject.toml          חבילה, תלויות ([ai] אופציונלי, [dev]
 AGENTS.md               כניסה לסוכנים אחרים → מפנה לכאן
 docs/                   ARCHITECTURE.md · JOURNAL.md (יומן) · screenshots/ · history/ (גרסאות CLAUDE.md, מפרטי AI Studio)
 run.bat / run.command / run.sh   הרצה מהריפו בלי התקנה (.venv מקומית)
+launcher/               MagnetStudio.bat / .command – מפעיל שמוריד את ה-build האחרון מהשחרור ומפעיל
 packaging/              magnetstudio.spec + build.py (PyInstaller) + launcher.py + ensure_env.py
 magnetstudio/
   __init__.py           __version__
@@ -144,6 +145,7 @@ python packaging/build.py                               # → dist/MagnetStudio/
 פיצול המחולל · תיקיות משתמש + keychain + core בלי Qt + PyInstaller · PrintQueueController.
 26 בדיקות עוברות (Linux). הקוד בריפו הפרטי `gpzboy-creator/magnet-studio` (ענף `main`).
 **הורדה (נבנית אוטומטית בכל push):** https://github.com/gpzboy-creator/magnet-studio/releases/tag/latest
+**מפעיל שמתעדכן לבד (מומלץ לשחר):** `launcher/MagnetStudio.bat` / `.command` – בודק עדכון, מוריד, מפעיל; מפתח GitHub לקריאה בלבד.
 **הרצה מהריפו:** `run.bat` / `run.command` / `run.sh` (נבדק ב-Linux, וב-CI על Windows/Mac – עם Python ועם uv).
 
 **לא נבדק במציאות:** מדפסת טרמית אמיתית (גודל נייר מותאם בדרייבר) · Gemini חי (שמות מודלים) ·

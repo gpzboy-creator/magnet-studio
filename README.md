@@ -7,6 +7,14 @@ A4 sheets. Hot folder, Hebrew text frames, a visual frame designer and an AI fra
 אפליקציית דסקטופ להלבשת מסגרות והדפסת מגנטים מאירועים. פרטים מלאים – ארכיטקטורה, מוסכמות וסטטוס –
 ב-[CLAUDE.md](CLAUDE.md).
 
+## Easiest: the self-updating launcher (no Python, no install)
+
+Download `MagnetStudio-Launcher-Windows.zip` (or `-macOS.zip`) once from the
+[latest release](https://github.com/gpzboy-creator/magnet-studio/releases/tag/latest), unzip it into a
+folder you keep, and double-click `MagnetStudio.bat` / `MagnetStudio.command` every time. It checks for a
+newer build, downloads it if there is one, and starts the app; offline it starts the version you have.
+The first time it asks for a read-only GitHub token (it opens the page and explains what to tick).
+
 ## Run straight from the repo (no install)
 
 Get the code (GitHub → **Code → Download ZIP** and unzip, or `git clone`), then double-click:
