@@ -42,7 +42,8 @@
 pyproject.toml          חבילה, תלויות ([ai] אופציונלי, [dev] לבדיקות/בנייה), pytest
 AGENTS.md               כניסה לסוכנים אחרים → מפנה לכאן
 docs/                   ARCHITECTURE.md · JOURNAL.md (יומן) · screenshots/ · history/ (גרסאות CLAUDE.md, מפרטי AI Studio)
-packaging/              magnetstudio.spec + build.py (PyInstaller) + launcher.py
+run.bat / run.command / run.sh   הרצה מהריפו בלי התקנה (.venv מקומית)
+packaging/              magnetstudio.spec + build.py (PyInstaller) + launcher.py + ensure_env.py
 magnetstudio/
   __init__.py           __version__
   __main__.py / app.py  נקודת כניסה: לוג, hooks, מיגרציה, keychain, גופנים, theme, חלון, SIGINT/SIGTERM
@@ -122,6 +123,9 @@ tests/                  pytest; conftest מבודד (תיקיית בית זמנ�
 - **Git:** commit לכל שלב לוגי, הודעה באנגלית (שורת סיכום + נקודות). הבדיקות חייבות לעבור לפני commit.
 
 ## הרצה, בדיקות, בנייה
+**הרצה ישירות מהריפו (בלי התקנה):** לחיצה כפולה על `run.bat` (Windows) / `run.command` (Mac) / `./run.sh` (Linux).
+בפעם הראשונה נוצרת `.venv` בתוך הריפו (uv אם קיים, אחרת Python 3.10+); `packaging/ensure_env.py` מתקין מחדש
+רק כש-`pyproject.toml` משתנה. `MAGNETSTUDIO_EXIT_AFTER_MS` סוגר את האפליקציה אוטומטית (בדיקת CI של הסקריפטים).
 ```bash
 python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -e ".[ai,dev]"
@@ -140,6 +144,7 @@ python packaging/build.py                               # → dist/MagnetStudio/
 פיצול המחולל · תיקיות משתמש + keychain + core בלי Qt + PyInstaller · PrintQueueController.
 26 בדיקות עוברות (Linux). הקוד בריפו הפרטי `gpzboy-creator/magnet-studio` (ענף `main`).
 **הורדה (נבנית אוטומטית בכל push):** https://github.com/gpzboy-creator/magnet-studio/releases/tag/latest
+**הרצה מהריפו:** `run.bat` / `run.command` / `run.sh` (נבדק ב-Linux בשני המסלולים; CI מריץ ב-Windows/Mac).
 
 **לא נבדק במציאות:** מדפסת טרמית אמיתית (גודל נייר מותאם בדרייבר) · Gemini חי (שמות מודלים) ·
 הרצה ובנייה על Windows/Mac (נבנה ונבדק רק על Linux) · מיגרציה מהתקנה ישנה אמיתית של שחר.

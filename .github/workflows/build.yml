@@ -96,3 +96,39 @@ jobs:
 
           **Mac (M1 ומעלה):** להוריד את MagnetStudio-macOS-AppleSilicon.zip → לחלץ → לגרור את MagnetStudio ל-Applications.
           בפעם הראשונה: קליק ימני על האפליקציה → Open → Open (התוכנה לא חתומה)."
+
+  # run.bat / run.command straight from the repo (what Shahar double-clicks), with and without uv.
+  run-from-source:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+        via: [python, uv]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      QT_QPA_PLATFORM: offscreen
+      MAGNETSTUDIO_EXIT_AFTER_MS: "6000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        if: matrix.via == 'python'
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+        if: matrix.via == 'uv'
+      - name: Run (Windows, run.bat)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          set MAGNETSTUDIO_HOME=%RUNNER_TEMP%\ms_home
+          call run.bat || exit /b 1
+          call run.bat || exit /b 1
+          findstr /C:"exiting (code 0)" "%RUNNER_TEMP%\ms_home\logs\magnetstudio.log"
+      - name: Run (macOS, run.command)
+        if: runner.os == 'macOS'
+        run: |
+          export MAGNETSTUDIO_HOME="$RUNNER_TEMP/ms_home"
+          ./run.command
+          ./run.command
+          grep "exiting (code 0)" "$MAGNETSTUDIO_HOME/logs/magnetstudio.log"

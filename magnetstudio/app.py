@@ -1,5 +1,6 @@
 """MagnetStudio – entry point (python -m magnetstudio, or the `magnetstudio` command)."""
 import logging
+import os
 import signal
 import sys
 
@@ -98,6 +99,10 @@ def main() -> int:
     log.info("Settings: %s | data: %s", settings_path(), paths.data_dir())
     window = MainWindow(_prepare_user_data())
     window.show()
+    smoke_ms = os.environ.get("MAGNETSTUDIO_EXIT_AFTER_MS")  # CI smoke test of run.bat / run.sh
+    if smoke_ms:
+        log.info("Smoke test: closing after %s ms", smoke_ms)
+        QTimer.singleShot(int(smoke_ms), lambda: (app.closeAllWindows(), app.quit()))
     code = app.exec()
     log.info("MagnetStudio exiting (code %s)", code)
     return code

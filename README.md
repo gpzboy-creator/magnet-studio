@@ -7,7 +7,23 @@ A4 sheets. Hot folder, Hebrew text frames, a visual frame designer and an AI fra
 אפליקציית דסקטופ להלבשת מסגרות והדפסת מגנטים מאירועים. פרטים מלאים – ארכיטקטורה, מוסכמות וסטטוס –
 ב-[CLAUDE.md](CLAUDE.md).
 
-## Install & run
+## Run straight from the repo (no install)
+
+Get the code (GitHub → **Code → Download ZIP** and unzip, or `git clone`), then double-click:
+
+| Windows | macOS | Linux |
+|---------|-------|-------|
+| `run.bat` | `run.command` (first time: right-click → Open) | `./run.sh` |
+
+The first run creates a local `.venv` folder **inside the repo** and downloads the libraries into it
+(a few minutes); after that it starts immediately. Nothing is installed system-wide. It needs either
+**uv** (fetches Python by itself – one-line install: <https://docs.astral.sh/uv/>) or **Python 3.10+**.
+After `git pull` the scripts update the libraries automatically if the dependencies changed.
+To start over, delete the `.venv` folder.
+
+Ready-made app (no Python at all): <https://github.com/gpzboy-creator/magnet-studio/releases/tag/latest>
+
+## Install & run (developers)
 
 ```bash
 python -m venv .venv
