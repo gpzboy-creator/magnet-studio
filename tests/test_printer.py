@@ -57,7 +57,7 @@ def page_count(pdf: Path) -> int:
 
 
 def _run() -> int:
-    app = QApplication(sys.argv)  # noqa: F841
+    app = QApplication.instance() or QApplication(sys.argv)  # noqa: F841
     failures = 0
 
     def check(cond, msg):

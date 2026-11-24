@@ -40,6 +40,7 @@ def _run() -> int:
     app = QApplication.instance() or QApplication(sys.argv)
     from magnetstudio import app as app_main
     app_main._setup_fonts(app)
+    from magnetstudio.services.print_queue import Stage
     from magnetstudio.ui.theme import apply_theme
     apply_theme(app)
 
@@ -77,13 +78,17 @@ def _run() -> int:
     items = [win.add_photo(p, "manual") for p in photos]   # newest on top: IMG_2, IMG_1, IMG_0
     first = items[1]                                        # IMG_1 – middle card (has a card below it)
     win._print_item(first.id)
-    check(wait_until(lambda: first.status == "done"), "setup: IMG_1 printed → PRINTED")
+    check(wait_until(lambda: first.stage == Stage.PRINTED), "setup: IMG_1 printed → PRINTED")
     card = qp.cards[first.id]
     check(card.status == QueueItemStatus.PRINTED, "card badge PRINTED")
 
     sent = []
-    real_submit = win.submit_job
-    win.submit_job = lambda job: sent.append(job.tag)      # spy: record, don't print
+    real_submit = win.queue.submit
+
+    def spy_submit(job):                                     # spy: record, never print
+        sent.append(job.tag)
+        return True
+    win.queue.submit = spy_submit
 
     def space():
         QTest.keyClick(win, Qt.Key.Key_Space)
@@ -191,14 +196,14 @@ def _run() -> int:
     check(sent == [] and not qp.guard.is_armed(), "while typing in a number field, Space is left alone")
 
     print("8) End-to-end: confirmed reprint really prints")
-    win.submit_job = real_submit
+    win.queue.submit = real_submit
     win.setFocus()
     qp.select(first.id)
     before = first.copies_printed
     space()
     wait(200)
     space()
-    check(wait_until(lambda: first.copies_printed == before + 1 and first.status == "done"),
+    check(wait_until(lambda: first.copies_printed == before + 1 and first.stage == Stage.PRINTED),
           f"printed again (×{first.copies_printed}), badge {qp.cards[first.id].status.name}")
 
     new = win.add_photo(photos[0], "manual")
@@ -207,7 +212,7 @@ def _run() -> int:
     QTest.keyClick(win, Qt.Key.Key_Up)
     check(qp.selected_id == new.id, "↑ goes back to the photo that is being printed")
     space()                      # impatient second tap while it is still queued / printing
-    check(wait_until(lambda: new.status == "done") and wait_until(lambda: False, 1.5) is False
+    check(wait_until(lambda: new.stage == Stage.PRINTED) and wait_until(lambda: False, 1.5) is False
           and new.copies_printed == 1, f"Space on a photo already in the print queue is ignored (×{new.copies_printed})")
 
     win._printer_timer.stop()

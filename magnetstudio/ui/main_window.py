@@ -7,7 +7,6 @@
 Layout is right-to-left (Hebrew): controls on the right, queue on the left.
 """
 import logging
-from collections import deque
 from pathlib import Path
 
 from PIL.ImageQt import ImageQt
@@ -24,13 +23,13 @@ from magnetstudio.core.settings import save_settings
 from magnetstudio.core.sizes import MAGNET_SIZES
 from magnetstudio.core.templates import load_template
 from magnetstudio.core.watcher import FolderWatcher
-from magnetstudio.services.printer import (DRY_RUN_PRINTER, PrintJob, PrintMode, PrintWorker,
-                                          get_available_printers, is_dry_run, is_printer_available)
+from magnetstudio.services.print_queue import PrintQueueController, QueueItem, Stage
+from magnetstudio.services.printer import (DRY_RUN_PRINTER, PrintJob, PrintMode, get_available_printers,
+                                          is_dry_run, is_printer_available)
 from magnetstudio.ui.designer import TemplateDesigner
 from magnetstudio.ui.settings_dialog import SettingsDialog
 from magnetstudio.ui.toast import Toast
 from magnetstudio.ui.components.queue_panel import QueueItemStatus, QueuePanel
-from magnetstudio.ui.widgets import QueueItem
 
 log = logging.getLogger(__name__)
 
@@ -113,9 +112,8 @@ class MainWindow(QMainWindow):
         self.settings = settings
         self.photo_path: str | None = None
         self._designer: TemplateDesigner | None = None
-        self._worker: PrintWorker | None = None
-        self._active_job: PrintJob | None = None
-        self._queue: deque[PrintJob] = deque()
+        # the print queue's state lives in the controller; this window only displays it
+        self.queue = PrintQueueController(self._job_for_item, int(settings.get("print_count_total", 0)), parent=self)
         self._watcher: FolderWatcher | None = None
         self._bridge = _WatcherBridge()
         self._bridge.new_photo.connect(self._on_new_photo)
@@ -123,8 +121,6 @@ class MainWindow(QMainWindow):
         self._after_pix: QPixmap | None = None
         self._preview_gen = 0
         self._render_threads: set[_RenderThread] = set()
-        self.items: dict[str, QueueItem] = {}
-        self._session_count = 0
         self.setAcceptDrops(True)
 
         self.setWindowTitle("MagnetStudio")
@@ -132,6 +128,7 @@ class MainWindow(QMainWindow):
         self.resize(1440, 860)
         self._build_ui()
         self.toast = Toast(self)
+        self._connect_queue()
         self._refresh_printers()
         self.queue_panel.set_total_prints(int(self.settings.get("print_count_total", 0)))
         self._printer_timer = QTimer(self, interval=5000, timeout=self._update_printer_chip)
@@ -323,7 +320,7 @@ class MainWindow(QMainWindow):
 
     def _update_printer_chip(self) -> None:
         name = self.printer_box.currentText()
-        if self._worker is not None:
+        if self.queue.is_busy:
             state = "printing"
         elif is_dry_run(name):
             state = "dry"
@@ -341,11 +338,42 @@ class MainWindow(QMainWindow):
         idx = self.printer_box.findText(saved)
         self.printer_box.setCurrentIndex(idx if idx >= 0 else 0)
 
-    # ================================================================ queue
+    # ================================================================ queue (display only)
+    # Stage → card badge. QUEUED after an earlier print shows "בהדפסה" (a reprint on its way).
+    _BADGES = {Stage.INCOMING: QueueItemStatus.INCOMING, Stage.ENHANCING: QueueItemStatus.ENHANCED,
+               Stage.COMPOSING: QueueItemStatus.COMPOSED, Stage.SPOOLING: QueueItemStatus.SPOOLING,
+               Stage.PRINTED: QueueItemStatus.PRINTED, Stage.FAILED: QueueItemStatus.FAILED}
+
+    @property
+    def items(self) -> dict[str, QueueItem]:
+        return self.queue.items
+
+    def _connect_queue(self) -> None:
+        q = self.queue
+        q.item_added.connect(lambda item_id: self.queue_panel.add_queue_card(item_id, q.items[item_id].path))
+        q.item_changed.connect(self._show_item)
+        q.busy_changed.connect(self._on_busy_changed)
+        q.status.connect(self.statusBar().showMessage)
+        q.progress.connect(self._on_progress)
+        q.job_succeeded.connect(self._on_succeeded)
+        q.job_failed.connect(self._on_failed)
+        q.printer_unavailable.connect(lambda _name: self._refresh_printers())
+
+    def _show_item(self, item_id: str) -> None:
+        item = self.queue.get(item_id)
+        if item is None:
+            return
+        badge = (QueueItemStatus.SPOOLING if item.copies_printed else QueueItemStatus.INCOMING) \
+            if item.stage == Stage.QUEUED else self._BADGES[item.stage]
+        # the total counter is driven by _on_succeeded (it counts magnets, incl. extra copies)
+        self.queue_panel.update_item_status(item_id, badge, count_printed=0)
+        card = self.queue_panel.cards.get(item_id)
+        if card is not None:
+            card.set_printed(item.copies_printed)
+            card.badge_lbl.setToolTip(item.error)
+
     def add_photo(self, path: str, source: str = "manual", select: bool = True) -> QueueItem:
-        item = QueueItem(path=path, source=source)
-        self.items[item.id] = item
-        self.queue_panel.add_queue_card(item.id, path)
+        item = self.queue.add_photo(path, source)
         if select:
             self.queue_panel.select(item.id)  # → selection_changed → _select_item
             self._select_item(item.id)
@@ -354,48 +382,25 @@ class MainWindow(QMainWindow):
     def _select_item(self, item_id: str) -> None:
         if self.queue_panel.selected_id != item_id:
             self.queue_panel.select(item_id)
-        item = self.items.get(item_id)
+        item = self.queue.get(item_id)
         if item and item.path != self.photo_path:
             self.photo_path = item.path
             self._refresh_preview()
 
-    def _set_item_status(self, item_id: str, status: str, error: str = "",
-                         shown: QueueItemStatus | None = None) -> None:
-        """Update the model and the card badge. `shown` overrides the badge for pipeline steps."""
-        item = self.items.get(item_id)
-        if not item:
-            return
-        item.status = status
-        item.error = error
-        badge = shown or {
-            "pending": QueueItemStatus.INCOMING, "queued": QueueItemStatus.INCOMING,
-            "processing": QueueItemStatus.COMPOSED, "printing": QueueItemStatus.SPOOLING,
-            "done": QueueItemStatus.PRINTED, "failed": QueueItemStatus.FAILED,
-        }[status]
-        # the counter is driven by _on_succeeded (it counts magnets, incl. extra copies)
-        self.queue_panel.update_item_status(item_id, badge, count_printed=0)
-        card = self.queue_panel.cards.get(item_id)
-        if card is not None:
-            card.set_printed(item.copies_printed)
-            card.badge_lbl.setToolTip(error)
-
     def _print_item(self, item_id: str) -> None:
-        item = self.items.get(item_id)
-        if item:
-            self.submit_job(self._make_job(item.path, self.copies_box.value(), item.id))
+        self.queue.print_item(item_id, self.copies_box.value())
 
     def _on_keyboard_print(self, item_id: str, reprint: bool) -> None:
         """Space on the selected card (a reprint arrives here only after the double-tap)."""
-        item = self.items.get(item_id)
-        if not item:
+        item = self.queue.get(item_id)
+        if item is None:
             return
-        if not reprint and (item.jobs_open > 0 or item.status in ("processing", "printing")):
-            self.statusBar().showMessage("התמונה כבר בתור להדפסה", 3000)  # no double print on a fast double-tap
+        if not self.queue.print_item(item_id, self.copies_box.value(), allow_duplicate=reprint):
+            if item.in_flight:
+                self.statusBar().showMessage("התמונה כבר בתור להדפסה", 3000)  # fast double-tap
             return
-        self.submit_job(self._make_job(item.path, self.copies_box.value(), item.id))
-        if reprint and item.status == "queued":  # confirmed reprint → show it as spooling
-            self._set_item_status(item_id, "queued", shown=QueueItemStatus.SPOOLING)
-            self.statusBar().showMessage(f"הדפסה חוזרת: {Path(item.path).name}", 4000)
+        if reprint:
+            self.statusBar().showMessage(f"הדפסה חוזרת: {item.name}", 4000)
 
     # Space / ↑ / ↓ / Esc → queue, unless the user is typing somewhere
     _TEXT_INPUTS = (QLineEdit, QAbstractSpinBox, QPlainTextEdit, QTextEdit)
@@ -418,10 +423,8 @@ class MainWindow(QMainWindow):
         return super().eventFilter(obj, event)
 
     def _add_copy(self, item_id: str) -> None:
-        item = self.items.get(item_id)
-        if item:
-            self.submit_job(self._make_job(item.path, 1, item.id))
-            self.toast.show_message(f"עותק נוסף: {Path(item.path).name}", "info", 2000)
+        if self.queue.print_item(item_id, 1):
+            self.toast.show_message(f"עותק נוסף: {self.queue.items[item_id].name}", "info", 2000)
 
     # ================================================================ preview
     def _open_photo(self) -> None:
@@ -586,6 +589,10 @@ class MainWindow(QMainWindow):
         d.show()
 
     # ================================================================ printing
+    def _job_for_item(self, item: QueueItem, copies: int) -> PrintJob:
+        """The controller's job_factory: what to print comes from the current UI choices."""
+        return self._make_job(item.path, copies, item.id)
+
     def _make_job(self, photo_path: str, copies: int, tag: str = "") -> PrintJob:
         return PrintJob(
             mode=PrintMode(self.mode_box.currentData()),
@@ -607,94 +614,38 @@ class MainWindow(QMainWindow):
         if not self.photo_path:
             self.toast.show_message("בחר תמונה קודם", "info")
             return
-        item = next((i for i in self.items.values() if i.path == self.photo_path), None) \
-            or self.add_photo(self.photo_path, "manual")
-        self.submit_job(self._make_job(self.photo_path, self.copies_box.value(), item.id))
+        item = self.queue.find_by_path(self.photo_path) or self.add_photo(self.photo_path, "manual")
+        self._print_item(item.id)
 
     def submit_job(self, job: PrintJob) -> None:
-        """Queue a job; it runs in a PrintWorker so the UI stays responsive."""
-        if not is_printer_available(job.printer_name):
-            log.error("Printer unavailable: %r (job %s)", job.printer_name, job.tag)
-            self._on_failed(f"המדפסת '{job.printer_name}' לא זמינה")
-            if job.tag:
-                self._set_item_status(job.tag, "failed", "המדפסת לא זמינה")
-            self._refresh_printers()
-            return
-        self._queue.append(job)
-        log.info("Queued [%s] %s ×%d (%d waiting)", job.tag or "-",
-                 ", ".join(Path(p).name for p in job.photo_paths), job.copies, len(self._queue))
-        if job.tag in self.items:
-            self.items[job.tag].jobs_open += 1
-            if self.items[job.tag].status not in ("processing", "printing"):
-                self._set_item_status(job.tag, "queued")
-        if self._worker is None:
-            self._start_next()
-        else:
-            self.statusBar().showMessage(f"נוסף לתור ({len(self._queue)} ממתינים)")
+        """Queue a ready-made job (e.g. from a script / test)."""
+        if self.queue.submit(job) and self.queue.waiting:
+            self.statusBar().showMessage(f"נוסף לתור ({self.queue.waiting} ממתינים)")
 
-    def _start_next(self) -> None:
-        self._active_job = None
-        if not self._queue:
-            self._worker = None
+    def _on_busy_changed(self, busy: bool) -> None:
+        if busy:
+            self.progress.setRange(0, 0)  # busy indicator until pages are counted
+            self.progress.show()
+        else:
             self.progress.hide()
             self.print_btn.setEnabled(True)
-            self._update_printer_chip()
-            return
-        job = self._queue.popleft()
-        w = PrintWorker(job, self)
-        w.status.connect(self.statusBar().showMessage)
-        w.progress.connect(self._on_progress)
-        w.succeeded.connect(self._on_succeeded)
-        w.failed.connect(self._on_failed)
-        w.finished.connect(w.deleteLater)
-        w.finished.connect(self._start_next)
-        self._worker, self._active_job = w, job
-        if job.tag:  # rendering: enhancer (if on) → frame / template
-            self._set_item_status(job.tag, "processing", shown=QueueItemStatus.ENHANCED
-                                  if job.photo_filter else QueueItemStatus.COMPOSED)
-        self.progress.setRange(0, 0)  # busy indicator until pages are counted
-        self.progress.show()
         self._update_printer_chip()
-        w.start()
 
     def _on_progress(self, done: int, total: int) -> None:
         self.progress.setRange(0, max(1, total))
         self.progress.setValue(done)
         self.progress.setFormat(f"{done}/{total}")
-        job = self._active_job
-        if job and job.tag and job.tag in self.items:
-            if done == 0:   # pages rendered, about to spool
-                self._set_item_status(job.tag, "processing", shown=QueueItemStatus.COMPOSED)
-            else:
-                self._set_item_status(job.tag, "printing")
 
-    def _finish_item_job(self, ok: bool, msg: str = "") -> None:
-        job = self._active_job
-        if not job or not job.tag or job.tag not in self.items:
-            return
-        item = self.items[job.tag]
-        item.jobs_open = max(0, item.jobs_open - 1)
-        if ok:
-            item.copies_printed += job.magnet_count()
-        status = ("queued" if item.jobs_open else "done") if ok else "failed"
-        self._set_item_status(job.tag, status, "" if ok else msg)
-
-    def _on_succeeded(self, msg: str) -> None:
-        n = self._active_job.magnet_count() if self._active_job else 0
-        self._session_count += n
-        self.settings["print_count_total"] = int(self.settings.get("print_count_total", 0)) + n
-        self.queue_panel.increment_print_counter(n)
-        self._finish_item_job(True)
+    def _on_succeeded(self, msg: str, magnets: int) -> None:
+        self.settings["print_count_total"] = self.queue.total_printed
+        self.queue_panel.increment_print_counter(magnets)
         self.persist_settings("print done")  # counter on disk right away
-        log.info("Counter: +%d → total %d (session %d)", n, self.settings["print_count_total"],
-                 self._session_count)
         self.statusBar().showMessage(msg, 8000)
-        if not self._queue:
+        if not self.queue.waiting:
             short = f"נשמר לקובץ PDF: {Path(msg.split(': ', 1)[1]).name}" if msg.startswith("נשמר: ") else msg
             self.toast.show_message(short, "success", 2500)
 
     def _on_failed(self, msg: str) -> None:
-        self._finish_item_job(False, msg)
         self.statusBar().showMessage(msg, 8000)
         self.toast.show_message(msg, "error", 6000)
 
@@ -729,7 +680,7 @@ class MainWindow(QMainWindow):
 
     def _on_new_photo(self, path: str) -> None:
         item = self.add_photo(path, "hot")
-        self.submit_job(self._make_job(path, 1, item.id))
+        self.queue.print_item(item.id, 1)
 
     # ================================================================ shutdown
     def closeEvent(self, event) -> None:
@@ -738,10 +689,7 @@ class MainWindow(QMainWindow):
             th.wait(3000)
         if self._watcher:
             self._watcher.stop()
-        if self._worker is not None:
-            self._queue.clear()
-            self._worker.cancel()
-            self._worker.wait(5000)
+        self.queue.shutdown()
         self.persist_settings("close")
-        log.info("Main window closed – %d magnet(s) printed this session", self._session_count)
+        log.info("Main window closed – %d magnet(s) printed this session", self.queue.session_printed)
         super().closeEvent(event)

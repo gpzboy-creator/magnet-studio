@@ -95,6 +95,7 @@ def _run() -> int:
     app = QApplication.instance() or QApplication(sys.argv)
     from magnetstudio import app as app_main
     app_main._setup_fonts(app)
+    from magnetstudio.services.print_queue import Stage
     from magnetstudio.ui.theme import apply_theme
     apply_theme(app)
     from magnetstudio.services.printer import DRY_RUN_PRINTER
@@ -115,7 +116,7 @@ def _run() -> int:
 
     item = win.add_photo(photos[0], "manual")
     win._print_item(item.id)
-    check(wait_until(lambda: item.status == "done"), "print 1 done")
+    check(wait_until(lambda: item.stage == Stage.PRINTED), "print 1 done")
     disk = load_settings()  # what a fresh start after a crash would see
     check(disk["print_count_total"] == 501, f"counter on disk right after the print: {disk['print_count_total']}")
     check(disk["magnet_size"] == "10x10" and disk["thermal_printer"] == DRY_RUN_PRINTER,
@@ -151,7 +152,7 @@ def _run() -> int:
     bad_img.write_bytes(b"not an image")
     b_item = win.add_photo(str(bad_img), "drop", select=False)
     win._print_item(b_item.id)
-    wait_until(lambda: b_item.status == "failed")
+    wait_until(lambda: b_item.stage == Stage.FAILED)
     junk_frame = HOME / "junk.json"
     junk_frame.write_text("{oops", encoding="utf-8")
     win.settings["frame"] = str(junk_frame)
@@ -159,13 +160,13 @@ def _run() -> int:
     job = win._make_job(photos[1], 1, j_item.id)
     job.frame_path = str(junk_frame)
     win.submit_job(job)
-    wait_until(lambda: j_item.status == "failed")
+    wait_until(lambda: j_item.stage == Stage.FAILED)
     win.settings["frame"] = None
     (HOME / "hot").mkdir()
     win.settings["watch_folder"] = str(HOME / "hot")
     win.auto_print.setChecked(True)
     Image.open(photos[1]).save(HOME / "hot" / "IMG_hot.jpg")
-    wait_until(lambda: any(i.source == "hot" and i.status == "done" for i in win.items.values()), 30)
+    wait_until(lambda: any(i.source == "hot" and i.stage == Stage.PRINTED for i in win.items.values()), 30)
     win.auto_print.setChecked(False)
     text = log_text()
     for needle, what in [("Printers found:", "printers at startup"),

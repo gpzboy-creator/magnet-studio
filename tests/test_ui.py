@@ -35,6 +35,7 @@ def _run() -> int:
     app = QApplication.instance() or QApplication(sys.argv)
     from magnetstudio import app as app_main
     app_main._setup_fonts(app)
+    from magnetstudio.services.print_queue import Stage
     from magnetstudio.ui import theme
     theme.apply_theme(app)
 
@@ -95,13 +96,13 @@ def _run() -> int:
     orig = card.update_status
     card.update_status = lambda st: (seen.append(st.name), orig(st))[1]
     card.btn_reprint.click()
-    ok = wait_until(lambda: item.status == "done")
+    ok = wait_until(lambda: item.stage == Stage.PRINTED)
     check(ok and item.copies_printed == 1 and card.status == QueueItemStatus.PRINTED,
           f"quick print → {card.status.name}, ×{item.copies_printed}")
     check("COMPOSED" in seen and "SPOOLING" in seen, f"badge passed through {seen}")
     card.btn_copy.click()
     card.btn_copy.click()
-    ok = wait_until(lambda: item.status == "done" and item.copies_printed == 3)
+    ok = wait_until(lambda: item.stage == Stage.PRINTED and item.copies_printed == 3)
     check(ok, f"'+1 עותק' twice → ×{item.copies_printed} printed")
     check("3" in card.time_lbl.text(), f"card meta: {card.time_lbl.text()}")
     check(qp.count_lbl.text() == "103" and win.settings["print_count_total"] == 103,
@@ -125,16 +126,16 @@ def _run() -> int:
     bad_item = win.add_photo(str(bad), "drop", select=False)
     check(qp.cards[bad_item.id].thumb_label.text() == "IMG", "broken file → IMG placeholder thumbnail")
     win._print_item(bad_item.id)
-    wait_until(lambda: bad_item.status == "failed")
+    wait_until(lambda: bad_item.stage == Stage.FAILED)
     check(qp.cards[bad_item.id].status == QueueItemStatus.FAILED, f"broken file → FAILED ({bad_item.error})")
 
     print("5) Hot Folder end-to-end")
     win.auto_print.setChecked(True)
     before = len(win.items)
     Image.open(photos[1]).save(tmp / "hot" / "IMG_hot.jpg")
-    ok = wait_until(lambda: len(win.items) == before + 1 and list(win.items.values())[-1].status == "done", 30)
+    ok = wait_until(lambda: len(win.items) == before + 1 and list(win.items.values())[-1].stage == Stage.PRINTED, 30)
     hot = list(win.items.values())[-1]
-    check(ok and hot.source == "hot", f"new file → card ({hot.source}) → {hot.status}")
+    check(ok and hot.source == "hot", f"new file → card ({hot.source}) → {hot.stage.name}")
     win.auto_print.setChecked(False)
     win._printer_timer.stop()
     win.hide()
