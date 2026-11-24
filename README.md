@@ -25,17 +25,46 @@ pytest
 
 Tests run offscreen and use temporary folders – they never touch your real settings, templates or log.
 
+## Build the desktop app
+
+```bash
+pip install -e ".[ai,dev]"
+python packaging/build.py     # → dist/MagnetStudio/  (run it on Windows for .exe, on macOS for .app)
+```
+
+## Where your data lives
+
+Settings, your own templates and fonts, logs and print files are kept in the OS user folders –
+never inside the app – so updates don't touch them (Windows `%LOCALAPPDATA%\MagnetStudio`,
+macOS `~/Library/Application Support/MagnetStudio`, logs in `~/Library/Logs/MagnetStudio`,
+print files in `Documents/MagnetStudio`). The Gemini API key is stored in the OS keychain.
+On first start, data from an older version (`config/settings.json`, user templates/fonts in
+`assets/`) is copied over automatically – keep the old folder until you've checked it.
+`MAGNETSTUDIO_HOME=<folder>` puts everything in one folder (portable / USB).
+
 ## Layout
 
 ```
 magnetstudio/
-  app.py          entry point (logging, crash hooks, fonts, theme, main window)
+  app.py          entry point (logging, crash hooks, migration, fonts, theme, main window)
   paths.py        every file location (bundled assets vs. per-user data)
-  core/           image processing, templates, layout, settings, log – no Qt
-  generator/      AI / offline frame generator
-  services/       Qt, non-widget: printing, background workers, print queue controller
+  core/           image processing, templates, layout, print jobs, settings, secrets, log – no Qt
+  generator/      AI / offline frame generator – no Qt
+  services/       Qt without widgets: print queue controller, printing, background workers
   ui/             PyQt6 widgets
-  assets/         bundled fonts, sample templates, icons
-tests/            pytest
-packaging/        PyInstaller spec
+  assets/         bundled fonts, sample templates, icons (read-only)
+tests/            pytest (offscreen, isolated user folders + in-memory keychain)
+packaging/        PyInstaller spec + build script
+docs/             architecture, development journal, screenshots, history
 ```
+
+## Documentation (for people and AI agents)
+
+| File | What |
+|------|------|
+| [CLAUDE.md](CLAUDE.md) | Source of truth: requirements, layout, conventions, commands, **status & next steps** |
+| [AGENTS.md](AGENTS.md) | Entry point for any AI coding agent (Codex, Cursor, Gemini…) |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Layers, print flow, algorithms, file locations, architecture review |
+| [docs/JOURNAL.md](docs/JOURNAL.md) | Development journal (יומן) – what was done, decisions, bugs found |
+| [docs/screenshots/](docs/screenshots/) | The app through its versions |
+| [docs/history/](docs/history/) | Earlier CLAUDE.md versions, original AI Studio design specs |
