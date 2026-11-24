@@ -49,9 +49,27 @@ jobs:
           name: ${{ matrix.asset }}
           path: ${{ matrix.asset }}
           retention-days: 14
-      - name: Tests
-        continue-on-error: true         # report Windows/Mac test results without blocking the download
-        run: python -m pytest -q
+
+  # Separate job: test results on Windows/Mac never hold back the download.
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: python -m pip install -e ".[ai,dev]" pytest-timeout
+      - name: Tests (a stuck test fails after 4 min with a traceback)
+        run: python -m pytest -v --timeout=240 -o faulthandler_timeout=230
 
   release:
     needs: build
