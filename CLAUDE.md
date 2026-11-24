@@ -144,7 +144,7 @@ python packaging/build.py                               # → dist/MagnetStudio/
 פיצול המחולל · תיקיות משתמש + keychain + core בלי Qt + PyInstaller · PrintQueueController.
 26 בדיקות עוברות (Linux). הקוד בריפו הפרטי `gpzboy-creator/magnet-studio` (ענף `main`).
 **הורדה (נבנית אוטומטית בכל push):** https://github.com/gpzboy-creator/magnet-studio/releases/tag/latest
-**הרצה מהריפו:** `run.bat` / `run.command` / `run.sh` (נבדק ב-Linux בשני המסלולים; CI מריץ ב-Windows/Mac).
+**הרצה מהריפו:** `run.bat` / `run.command` / `run.sh` (נבדק ב-Linux, וב-CI על Windows/Mac – עם Python ועם uv).
 
 **לא נבדק במציאות:** מדפסת טרמית אמיתית (גודל נייר מותאם בדרייבר) · Gemini חי (שמות מודלים) ·
 הרצה ובנייה על Windows/Mac (נבנה ונבדק רק על Linux) · מיגרציה מהתקנה ישנה אמיתית של שחר.
