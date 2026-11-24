@@ -138,13 +138,15 @@ python packaging/build.py                               # → dist/MagnetStudio/
 גופנים עבריים, Fast Enhancer, ממשק כהה, סגנון מגנטים ישראלי (אנכי+אופקי), הגנת הדפסה חוזרת.
 **סקירת ארכיטקטורה – כל 6 השלבים הושלמו** (פירוט ביומן): שמירה מיידית + לוג · חבילה + pytest ·
 פיצול המחולל · תיקיות משתמש + keychain + core בלי Qt + PyInstaller · PrintQueueController.
-26 בדיקות עוברות. הקוד בריפו הפרטי `gpzboy-creator/magnet-studio` (ענף `main`).
+26 בדיקות עוברות (Linux). הקוד בריפו הפרטי `gpzboy-creator/magnet-studio` (ענף `main`).
+**הורדה (נבנית אוטומטית בכל push):** https://github.com/gpzboy-creator/magnet-studio/releases/tag/latest
 
 **לא נבדק במציאות:** מדפסת טרמית אמיתית (גודל נייר מותאם בדרייבר) · Gemini חי (שמות מודלים) ·
 הרצה ובנייה על Windows/Mac (נבנה ונבדק רק על Linux) · מיגרציה מהתקנה ישנה אמיתית של שחר.
 
 **הבא בתור (הצעות):**
-1. לבנות ולהריץ על Windows/Mac (`python packaging/build.py`) ולבדוק עם מדפסת אמיתית באירוע ניסיון.
-2. אייקון לאפליקציה (`.ico` / `.icns`) + חתימה (macOS notarization) + installer (Inno Setup / DMG).
-3. CI ב-GitHub Actions: pytest על Windows/macOS + בניית PyInstaller כ-artifact.
-4. `test_ai_enhancer`: סף הזמן (150ms ל-24MP) נכשל לפעמים ב-1ms תחת עומס – להרחיב את הסף או לבדוק חציון.
+1. **ניקוד עברי נחתך ב-Windows** (נמצא ב-CI: 0.2–1% דיו + יישור לימין) – לבדוק libraqm/python-bidi ב-Windows ולתקן.
+   + לתקן את `test_fonts` (גופן "תורם" לפי מערכת הפעלה; לא לפתוח דיאלוג) ואת סף הזמן ב-`test_ai_enhancer`.
+2. להוריד מהקישור, להריץ על Windows/Mac אמיתי ולבדוק עם מדפסת אמיתית באירוע ניסיון.
+3. אייקון לאפליקציה (`.ico` / `.icns`) + חתימה (macOS notarization) + installer (Inno Setup / DMG).
+4. CI קיים (`.github/workflows/build.yml`); אחרי התיקונים – להפוך את הבדיקות לחוסמות.

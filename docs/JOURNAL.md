@@ -8,6 +8,24 @@
 
 ## רשומות (החדשה ראשונה)
 
+### 24.11.2026 (המשך) – בנייה אוטומטית ל-Windows/Mac + קישור הורדה קבוע
+**רקע:** שחר ביקש "קישור להפעלה של התוכנה".
+**נעשה:** `.github/workflows/build.yml` – בכל push ל-main: בניית PyInstaller על windows-latest
+ו-macos-latest (Apple Silicon), העלאה לשחרור הקבוע `latest`:
+https://github.com/gpzboy-creator/magnet-studio/releases/tag/latest
+(Windows ‏60MB, Mac ‏45MB). הבדיקות רצות ב-job נפרד עם timeout ולא מעכבות את ההורדה.
+**החלטות:** שחרור אחד קבוע (`latest`, prerelease) שמוחלף בכל בנייה – קישור שלא משתנה.
+התוכנה לא חתומה: Windows → More info → Run anyway; Mac → קליק ימני → Open.
+**נמצא בדרך (הרצה ראשונה של הבדיקות על Windows):**
+- `test_fonts` נתקע: מחפש גופן "תורם" של Linux (FreeSerif/DejaVu); לא נמצא → נפתח דיאלוג קבצים
+  שמחכה לקליק. בעיית בדיקה, לא של האפליקציה.
+- **אמיתי:** ב-Windows ניקוד עברי נחתך ב-0.2–1% מהדיו (Heebo/Assistant/Rubik/Varela/Times) וגם
+  יישור לימין נכשל בבדיקה – כנראה Pillow ב-Windows בלי libraqm (נופל ל-python-bidi) ומטריקות שונות.
+  משפיע על טקסט עם ניקוד במגנטים שמודפסים מ-Windows.
+- `test_ai_enhancer` נכשל ב-Windows (כנראה סף הזמן על מכונת CI איטית).
+- Mac: תוצאות הבדיקות עוד לא היו מוכנות בזמן הכתיבה.
+**פתוח:** לתקן את 3 הנקודות למעלה; לבדוק את ההורדה על מחשב אמיתי.
+
 ### 24.11.2026 – סקירת ארכיטקטורה: שלבים 1–6 + ריפו ב-GitHub
 **רקע:** שחר ביקש סקירה של המבנה ("האם זה מבנה טוב? סטנדרטי?"). נמצאו 6 נקודות לשיפור
 (פירוט מלא ב-[ARCHITECTURE.md › סקירה](ARCHITECTURE.md#סקירת-ארכיטקטורה-24112026)). כולן בוצעו היום,
