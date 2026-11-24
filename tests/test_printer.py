@@ -3,7 +3,6 @@
 Run:  pytest tests/test_printer.py
 Works without a physical printer (uses the PDF dry-run target).
 """
-import os
 import sys
 import time
 from pathlib import Path
@@ -96,4 +95,4 @@ def _run() -> int:
 
 def test_printer():
     """Scenario test – every ✔/✘ line is printed; pytest shows them when a check fails."""
-    assert _run() == 0, f"{failures} check(s) failed – see the ✘ lines in the captured output"
+    assert _run() == 0, "check(s) failed – see the ✘ lines in the captured output"

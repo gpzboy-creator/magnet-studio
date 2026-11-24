@@ -6,7 +6,6 @@ and checks readability, credit sharpness and a clean photo window.
 
 Run:  pytest tests/test_frames_style.py
 """
-import os
 import sys
 import tempfile
 from pathlib import Path
@@ -15,7 +14,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 from PIL import Image, ImageDraw, ImageFilter, ImageOps  # noqa: E402
 
-from magnetstudio.core.frame_generator import (DEFAULT_CREDIT, build_frame_pair, contrast, safe_margin,  # noqa: E402
+from magnetstudio.generator import (DEFAULT_CREDIT, build_frame_pair, contrast, safe_margin,  # noqa: E402
                                   text_height)
 from magnetstudio.core.framer import render_magnet  # noqa: E402
 from magnetstudio.core.templates import (LANDSCAPE, PORTRAIT, TemplatePair, compose_auto, export_frame_png,  # noqa: E402

@@ -3,7 +3,6 @@ verify text alignment and slot transparency, and drive the designer headlessly.
 
 Run:  pytest tests/test_templates.py
 """
-import os
 import sys
 import time
 from pathlib import Path
@@ -128,7 +127,7 @@ def _run() -> int:
     from PyQt6.QtWidgets import QApplication
     app = QApplication.instance() or QApplication(sys.argv)
     from magnetstudio.core.settings import load_settings
-    from magnetstudio.ui.designer import GraphicItem, SlotItem, TemplateDesigner, TextItem
+    from magnetstudio.ui.designer import SlotItem, TemplateDesigner, TextItem
     from magnetstudio.ui.main_window import MainWindow
 
     win = MainWindow(load_settings())

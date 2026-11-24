@@ -5,7 +5,6 @@ No network: the Gemini client is mocked (same call shape as google-genai).
 Run:  pytest tests/test_frame_generator.py
 """
 import io
-import os
 import shutil
 import sys
 import time
@@ -16,8 +15,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 from PIL import Image, ImageDraw  # noqa: E402
 
-import magnetstudio.core.frame_generator as fg  # noqa: E402
-from magnetstudio.core.frame_generator import (FrameDesign, SlotSpec, TextSpec, build_preset_template,  # noqa: E402
+from magnetstudio.generator import (FrameDesign, SlotSpec, TextSpec, build_preset_template,  # noqa: E402
                                   design_to_template, generate_frame, parse_event,
                                   punch_alpha_holes, safe_margin, text_height)
 from magnetstudio.core.templates import PhotoSlot, compose_magnet, load_template, render_overlay_frame, save_template  # noqa: E402
@@ -201,13 +199,14 @@ def _run() -> int:
     check(same and (tdir / "henna_assets").is_dir(), "saved + reloaded renders identically, assets copied")
 
     print("8) FrameGeneratorWorker (QThread)")
+    from magnetstudio.services.generator_worker import FrameGeneratorWorker
     from PyQt6.QtCore import QEventLoop, QTimer
     from PyQt6.QtWidgets import QApplication
     app = QApplication.instance() or QApplication(sys.argv)  # noqa: F841
     for label, client in (("mock Gemini", mock_client(design=GOOD_DESIGN)),
                           ("failing cloud", mock_client(design=GOOD_DESIGN, fail=True))):
         got, prog, errs, ticks = [], [], [], [0]
-        w = fg.FrameGeneratorWorker("חינה למורן ואביב 18.09.2026", "7.5x10", 1, client=client)
+        w = FrameGeneratorWorker("חינה למורן ואביב 18.09.2026", "7.5x10", 1, client=client)
         w.progress.connect(lambda p, s: prog.append(p))
         w.finished.connect(got.append)
         w.failed.connect(errs.append)
@@ -226,7 +225,7 @@ def _run() -> int:
         check(len(got) == 1 and not errs and prog[-1] == 100 and prog == sorted(prog),
               f"{label}: finished(Template), progress {prog[0]}→{prog[-1]}, engine={w.result.engine}")
         check(start_ms < 50 and ticks[0] > 0, f"{label}: non-blocking (start {start_ms:.1f} ms, {ticks[0]} GUI ticks)")
-    w = fg.FrameGeneratorWorker("   ", "7.5x10")
+    w = FrameGeneratorWorker("   ", "7.5x10")
     errs = []
     w.failed.connect(errs.append)
     w.start()

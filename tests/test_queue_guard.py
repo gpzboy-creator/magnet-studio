@@ -2,7 +2,6 @@
 
 Run:  pytest tests/test_queue_guard.py
 """
-import os
 import sys
 import tempfile
 import time

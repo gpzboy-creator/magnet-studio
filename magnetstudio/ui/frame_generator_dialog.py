@@ -9,8 +9,9 @@ from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFormLayout, QHBoxLa
                              QLineEdit, QPlainTextEdit, QProgressBar, QPushButton, QVBoxLayout)
 
 from magnetstudio.core.ai_enhancer import get_api_key
-from magnetstudio.core.frame_generator import (DEFAULT_ART_MODEL, DEFAULT_CREDIT, DEFAULT_TEXT_MODEL, HAS_GENAI,
-                                  HAS_PYDANTIC, FrameGeneratorWorker)
+from magnetstudio.generator import (DEFAULT_ART_MODEL, DEFAULT_CREDIT, DEFAULT_TEXT_MODEL, HAS_GENAI,
+                                  HAS_PYDANTIC)
+from magnetstudio.services.generator_worker import FrameGeneratorWorker
 from magnetstudio.core.sizes import MAGNET_SIZES
 from magnetstudio.core.templates import LANDSCAPE, PORTRAIT, Template, TemplatePair, compose_magnet
 

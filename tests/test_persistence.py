@@ -19,7 +19,7 @@ from PIL import Image  # noqa: E402
 from PyQt6.QtCore import QEventLoop, QTimer  # noqa: E402
 from PyQt6.QtWidgets import QApplication  # noqa: E402
 
-from magnetstudio.core import applog, settings as settings_mod  # noqa: E402
+from magnetstudio.core import applog  # noqa: E402
 from magnetstudio.core.settings import DEFAULTS, load_settings, save_settings, settings_path  # noqa: E402
 
 failures = 0
@@ -155,7 +155,6 @@ def _run() -> int:
     junk_frame = HOME / "junk.json"
     junk_frame.write_text("{oops", encoding="utf-8")
     win.settings["frame"] = str(junk_frame)
-    from magnetstudio.core.printer import PrintJob, PrintMode
     j_item = win.add_photo(photos[1], "manual", select=False)
     job = win._make_job(photos[1], 1, j_item.id)
     job.frame_path = str(junk_frame)
