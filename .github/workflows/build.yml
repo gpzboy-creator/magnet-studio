@@ -72,7 +72,10 @@ jobs:
         run: python -m pytest -v --timeout=240 -o faulthandler_timeout=230
 
   release:
+    # Publishes whatever built. A platform whose build failed (e.g. GitHub had no free Mac runner)
+    # keeps its previous download – the release is updated, never wiped.
     needs: build
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -80,30 +83,37 @@ jobs:
         with:
           path: assets
           merge-multiple: true
+        continue-on-error: true
       - name: Add the launchers (download once, they keep the app up to date)
         run: |
+          mkdir -p assets
           (cd launcher && zip -X ../assets/MagnetStudio-Launcher-Windows.zip MagnetStudio.bat \
                        && zip -X ../assets/MagnetStudio-Launcher-macOS.zip MagnetStudio.command)
       - name: Publish to the "latest" release
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
         run: |
           ls -la assets
-          gh release delete latest --repo "$REPO" --yes --cleanup-tag || true
-          gh release create latest assets/*.zip --repo "$REPO" --prerelease \
-            --target "${{ github.sha }}" \
-            --title "MagnetStudio – גרסה אחרונה (build ${{ github.run_number }})" \
-            --notes "נבנה אוטומטית מ-commit ${{ github.sha }}.
-
+          cat > notes.md <<'NOTES'
           **הכי נוח – מפעיל שמתעדכן לבד:** MagnetStudio-Launcher-Windows.zip / MagnetStudio-Launcher-macOS.zip.
-          לחלץ לתיקייה קבועה וללחוץ לחיצה כפולה בכל פעם; בודק עדכון, מוריד אם יש, ומפעיל.
+          לחלץ לתיקייה קבועה וללחוץ לחיצה כפולה בכל פעם: בודק עדכון, מוריד אם יש, ומפעיל. בלי אינטרנט – מפעיל את הגרסה שכבר יש.
 
-          **Windows:** להוריד את MagnetStudio-Windows.zip → לחלץ → להפעיל MagnetStudio\\MagnetStudio.exe.
-          בפעם הראשונה Windows עלול להציג 'Windows protected your PC' → More info → Run anyway (התוכנה לא חתומה).
+          **Windows ידני:** MagnetStudio-Windows.zip → לחלץ → MagnetStudio\MagnetStudio.exe.
+          בפעם הראשונה: Windows protected your PC → More info → Run anyway (התוכנה לא חתומה).
 
-          **Mac (M1 ומעלה):** להוריד את MagnetStudio-macOS-AppleSilicon.zip → לחלץ → לגרור את MagnetStudio ל-Applications.
-          בפעם הראשונה: קליק ימני על האפליקציה → Open → Open (התוכנה לא חתומה)."
+          **Mac (M1 ומעלה) ידני:** MagnetStudio-macOS-AppleSilicon.zip → לחלץ → לגרור ל-Applications → קליק ימני → Open.
+          NOTES
+          echo "" >> notes.md
+          echo "Commit: $SHA (build ${{ github.run_number }})" >> notes.md
+          if ! gh release view latest --repo "$REPO" >/dev/null 2>&1; then
+            gh release create latest --repo "$REPO" --prerelease --target "$SHA" --title "MagnetStudio" --notes "-"
+          fi
+          gh api -X PATCH "repos/$REPO/git/refs/tags/latest" -f sha="$SHA" -F force=true >/dev/null || true
+          gh release edit latest --repo "$REPO" --prerelease \
+            --title "MagnetStudio – גרסה אחרונה (build ${{ github.run_number }})" --notes-file notes.md
+          gh release upload latest assets/*.zip --repo "$REPO" --clobber
 
   # run.bat / run.command straight from the repo (what Shahar double-clicks), with and without uv.
   run-from-source:
@@ -145,6 +155,7 @@ jobs:
   # 1st run downloads + starts the app, 2nd run must say "up to date" and start it again.
   launcher:
     needs: release
+    if: ${{ always() && needs.release.result == 'success' }}
     strategy:
       fail-fast: false
       matrix:
