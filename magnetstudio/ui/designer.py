@@ -22,7 +22,8 @@ from PyQt6.QtWidgets import (QCheckBox, QColorDialog, QComboBox, QDialog, QDockW
 
 from magnetstudio.core import fonts as font_registry
 from magnetstudio.core.image_processor import load_image
-from magnetstudio.core.settings import TEMPLATES_DIR, load_settings
+from magnetstudio import paths
+from magnetstudio.core.settings import load_settings
 from magnetstudio.core.templates import (LANDSCAPE, PORTRAIT, SLOT_PRESETS, CanvasConfig, CreditLayer, GraphicLayer,
                             PhotoSlot, Template, TemplatePair, TextLayer, compose_magnet,
                             export_frame_png, load_frame, parse_color, render_credit_layer,
@@ -47,6 +48,13 @@ def hex_rgba(c: QColor) -> str:
 
 
 # ============================================================== scene items
+
+
+def _is_bundled(path: Path) -> bool:
+    try:
+        return Path(path).resolve().is_relative_to(paths.BUNDLED_TEMPLATES_DIR.resolve())
+    except OSError:
+        return False
 
 class ResizeHandle(QGraphicsRectItem):
     """Bottom-right handle; dragging it resizes the parent item."""
@@ -329,7 +337,7 @@ class ColorButton(QPushButton):
 
 
 class FontPicker(QComboBox):
-    """Font combobox: custom fonts (assets/fonts) first, then system fonts.
+    """Font combobox: app fonts (bundled + user-added) first, then system fonts.
     Each name is previewed in its own typeface. Live-refreshes when fonts are added."""
     family_changed = pyqtSignal(str)
     _instances: "list[FontPicker]" = []
@@ -582,7 +590,8 @@ class PropertiesPanel(QScrollArea):
         if not path:
             return None
         try:
-            family = font_registry.add_font_file(path)
+            from magnetstudio.services.fonts_qt import add_font_file
+            family = add_font_file(path)
         except Exception as e:
             QMessageBox.warning(self, "הוספת גופן נכשלה", str(e))
             return None
@@ -966,8 +975,11 @@ class TemplateDesigner(QMainWindow):
     def _default_path(self, suffix: str) -> Path:
         name = self.pair.name if self.pair else self.template.name
         safe = "".join(ch for ch in name if ch.isalnum() or ch in " _-").strip() or "template"
-        return (self.path.with_suffix(suffix) if self.path
-                else TEMPLATES_DIR / f"{safe}_{self.template.canvas.profile}{suffix}")
+        if self.path and not _is_bundled(self.path):
+            return self.path.with_suffix(suffix)
+        # new template, or an edited bundled sample → the user's templates folder (bundled is read-only)
+        return paths.user_templates_dir() / (self.path.with_suffix(suffix).name if self.path
+                                             else f"{safe}_{self.template.canvas.profile}{suffix}")
 
     def save(self, path: str | Path | None = None) -> Path | None:
         if path is None:
@@ -1011,11 +1023,11 @@ class TemplateDesigner(QMainWindow):
         A portrait/landscape pair is saved as one JSON (so the main window keeps picking the
         variant per photo); a single template is rendered to a ready PNG overlay."""
         if self.pair is not None:
-            out = save_frame(self.pair, TEMPLATES_DIR / self._default_path(".json").name)
+            out = save_frame(self.pair, paths.user_templates_dir() / self._default_path(".json").name)
             self.statusBar().showMessage(f"המסגרת (אנכי + אופקי) הופעלה בחלון הראשי: {out.name}", 5000)
             self.frame_exported.emit(str(out))
             return out
-        out = export_frame_png(self.template, TEMPLATES_DIR / self._default_path(".png").name)
+        out = export_frame_png(self.template, paths.user_templates_dir() / self._default_path(".png").name)
         self.statusBar().showMessage(f"המסגרת הופעלה בחלון הראשי: {out.name}", 5000)
         self.frame_exported.emit(str(out))
         return out
@@ -1055,7 +1067,7 @@ class TemplateDesigner(QMainWindow):
     def open_template(self):
         if not self._confirm_discard():
             return
-        path, _ = QFileDialog.getOpenFileName(self, "פתח תבנית", str(TEMPLATES_DIR), "Template (*.json)")
+        path, _ = QFileDialog.getOpenFileName(self, "פתח תבנית", str(paths.user_templates_dir()), "Template (*.json)")
         if path:
             self._set_frame(load_frame(path))
             self.path = Path(path)

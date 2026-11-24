@@ -13,7 +13,7 @@ from PIL import Image, ImageDraw  # noqa: E402
 from PyQt6.QtCore import QEventLoop, QTimer  # noqa: E402
 from PyQt6.QtWidgets import QApplication  # noqa: E402
 
-from magnetstudio.core.printer import (DRY_RUN_PRINTER, PrintJob, PrintMode, PrintWorker,  # noqa: E402
+from magnetstudio.services.printer import (DRY_RUN_PRINTER, PrintJob, PrintMode, PrintWorker,  # noqa: E402
                           get_available_printers, is_printer_available)
 from magnetstudio.core.sizes import MAGNET_SIZES  # noqa: E402
 

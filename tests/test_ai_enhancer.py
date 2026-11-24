@@ -118,7 +118,8 @@ def _run() -> int:
     from PyQt6.QtWidgets import QApplication
     app = QApplication.instance() or QApplication(sys.argv)  # noqa: F841
     got, fallbacks, ticks = [], [], [0]
-    w = ae.EnhancementWorker([photo_like(1772, 2362, s) for s in range(3)], "dye_sub",
+    from magnetstudio.services.enhancement_worker import EnhancementWorker
+    w = EnhancementWorker([photo_like(1772, 2362, s) for s in range(3)], "dye_sub",
                              cloud_style="print_ready", api_key="dummy")
     w.enhanced.connect(lambda i, im, eng: got.append((i, im.size, eng)))
     w.fallback.connect(fallbacks.append)

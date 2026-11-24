@@ -7,7 +7,7 @@ import uuid
 
 from PIL import Image, ImageChops, ImageDraw
 
-from magnetstudio.core.settings import TEMPLATES_DIR
+from magnetstudio import paths
 from magnetstudio.core.templates import (
     CanvasConfig,
     PhotoSlot,
@@ -17,7 +17,6 @@ from magnetstudio.generator.colors import _hex, _mix, _rgb
 from magnetstudio.generator.layout import safe_margin
 from magnetstudio.generator.styles import FrameStyle
 
-GENERATED_DIR = TEMPLATES_DIR / "_generated"
 
 
 # ============================================================== ornaments (procedural, 300 DPI)
@@ -91,8 +90,9 @@ def punch_alpha_holes(img: Image.Image, slots: list[PhotoSlot], bleed: int = 0) 
 
 
 def _save_generated(img: Image.Image, tag: str) -> str:
-    GENERATED_DIR.mkdir(parents=True, exist_ok=True)
-    path = GENERATED_DIR / f"{tag}_{uuid.uuid4().hex[:8]}.png"
+    gen_dir = paths.generated_dir()  # user data folder; saving a template copies what it uses
+    gen_dir.mkdir(parents=True, exist_ok=True)
+    path = gen_dir / f"{tag}_{uuid.uuid4().hex[:8]}.png"
     img.save(path, dpi=(300, 300))
     return str(path)
 

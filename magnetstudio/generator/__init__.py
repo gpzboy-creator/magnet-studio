@@ -17,7 +17,7 @@ from magnetstudio.generator.ai import (ART_ASPECTS, DEFAULT_ART_MODEL, DEFAULT_T
 from magnetstudio.generator.colors import STYLE_PALETTES, contrast, ensure_contrast, palette_for
 from magnetstudio.generator.layout import (default_slot_count, fit_text, preset_slots, safe_margin, stack_texts,
                                            text_height)
-from magnetstudio.generator.ornaments import (GENERATED_DIR, draw_emblem, draw_flourish, draw_heart,
+from magnetstudio.generator.ornaments import (draw_emblem, draw_flourish, draw_heart,
                                               draw_olive_branch, draw_ornament, draw_rings, draw_watercolor_corner,
                                               draw_wreath, punch_alpha_holes)
 from magnetstudio.generator.parse import EventInfo, parse_event
@@ -27,7 +27,7 @@ from magnetstudio.generator.styles import DEFAULT_CREDIT, EMBLEMS, FLOURISHES, F
 
 __all__ = [
     "ART_ASPECTS", "DEFAULT_ART_MODEL", "DEFAULT_CREDIT", "DEFAULT_TEXT_MODEL", "EMBLEMS", "FLOURISHES",
-    "GENERATED_DIR", "HAS_GENAI", "HAS_PYDANTIC", "STYLE_PALETTES",
+    "HAS_GENAI", "HAS_PYDANTIC", "STYLE_PALETTES",
     "EventInfo", "FrameDesign", "FrameStyle", "GenerationResult", "GeneratorUnavailable", "Progress",
     "SlotSpec", "TextSpec",
     "add_art_layer", "build_frame_pair", "build_israeli_template", "build_preset_template", "contrast",

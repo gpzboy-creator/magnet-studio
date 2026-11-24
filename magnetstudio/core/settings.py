@@ -1,11 +1,12 @@
-"""Load and save app settings (config/settings.json).
+"""Load and save app settings (settings.json in the user's config folder – see paths.py).
 
 - Atomic save: write to a temp file in the same folder, fsync, then os.replace(). A crash or power
   cut mid-write leaves either the old file or the new one – never a half-written / empty file.
 - Safe load: a corrupt file is kept aside as settings.json.corrupt-<time> and defaults are used,
   instead of the app refusing to start.
-- MAGNETSTUDIO_SETTINGS (env var) points to another file – used by the tests so they never touch
-  the real settings.
+- MAGNETSTUDIO_SETTINGS / MAGNETSTUDIO_HOME (env vars) point elsewhere – used by the tests so they
+  never touch the real settings.
+- The Gemini API key is NOT stored here any more – see core/secrets.py (OS keychain).
 """
 import json
 import logging
@@ -16,18 +17,14 @@ from pathlib import Path
 
 log = logging.getLogger(__name__)
 
-from magnetstudio.paths import BUNDLED_TEMPLATES_DIR, LEGACY_SETTINGS
-
-ROOT = LEGACY_SETTINGS.parent.parent          # repo root (output/ lives here for now)
-SETTINGS_PATH = LEGACY_SETTINGS
-TEMPLATES_DIR = BUNDLED_TEMPLATES_DIR
+from magnetstudio import paths
 
 DEFAULTS = {
     "magnet_size": "7.5x10",
     "print_mode": "thermal",
     "frame": None,
     "watch_folder": "",
-    "output_folder": "output",
+    "output_folder": "",         # "" = Documents/MagnetStudio/output (paths.resolve_output_dir)
     "thermal_printer": "",
     "a4_printer": "",
     "a4_margin_cm": 0.3,
@@ -37,7 +34,7 @@ DEFAULTS = {
     "enhance_preset": "dye_sub",
     "cloud_style": None,         # optional Gemini style, e.g. "print_ready"
     "gemini_model": "gemini-3.1-flash-image",
-    "gemini_api_key": "",        # or env var GEMINI_API_KEY
+    "gemini_api_key": "",        # legacy only – moved to the OS keychain on first start
     "gemini_text_model": "gemini-3.8-flash",       # frame generator – Structured Output
     "gemini_art_model": "gemini-3.1-flash-image",  # frame generator – background art
     "photographer_credit": "שחר לוי גונן | 0525860073",  # vertical credit on generated frames
@@ -45,9 +42,8 @@ DEFAULTS = {
 
 
 def settings_path() -> Path:
-    """The settings file in use (MAGNETSTUDIO_SETTINGS overrides the default)."""
-    env = os.environ.get("MAGNETSTUDIO_SETTINGS")
-    return Path(env) if env else SETTINGS_PATH
+    """The settings file in use."""
+    return paths.settings_file()
 
 
 def load_settings(path: Path | None = None) -> dict:

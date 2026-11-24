@@ -48,7 +48,7 @@ def _run() -> int:
     check(app.layoutDirection() == Qt.LayoutDirection.RightToLeft, "app is right-to-left (Hebrew)")
     check(app.style().metaObject().className() == "QStyleSheetStyle", "stylesheet active on top of Fusion")
 
-    from magnetstudio.core.printer import DRY_RUN_PRINTER
+    from magnetstudio.services.printer import DRY_RUN_PRINTER
     from magnetstudio.core.settings import load_settings
     from magnetstudio.ui.components.queue_panel import QueueCardWidget, QueueItemStatus
     from magnetstudio.ui.main_window import MainWindow

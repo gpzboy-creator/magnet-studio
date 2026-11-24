@@ -97,7 +97,7 @@ def _run() -> int:
     app_main._setup_fonts(app)
     from magnetstudio.ui.theme import apply_theme
     apply_theme(app)
-    from magnetstudio.core.printer import DRY_RUN_PRINTER
+    from magnetstudio.services.printer import DRY_RUN_PRINTER
     from magnetstudio.ui.main_window import MainWindow
 
     photos = []
@@ -255,7 +255,7 @@ def _run() -> int:
     child_log = (HOME / "child_logs" / "magnetstudio.log").read_text(encoding="utf-8")
     check("EXIT 0" in r.stdout, f"starts and exits cleanly ({r.stdout.strip() or r.stderr[-200:]})")
     from magnetstudio import __version__
-    for needle in (f"MagnetStudio {__version__} starting", "PyQt6 ", "Settings: ", "Printers found:", "exiting (code 0)"):
+    for needle in (f"MagnetStudio {__version__} starting", ", PyQt 6", "Settings: ", "Printers found:", "exiting (code 0)"):
         check(needle in child_log, f"startup log: '{needle.strip()}'")
     check(json.loads((HOME / "child_settings.json").read_text(encoding="utf-8"))["magnet_size"] == "7.5x10",
           "settings written on close")

@@ -1,13 +1,17 @@
 """MagnetStudio – entry point (python -m magnetstudio, or the `magnetstudio` command)."""
 import logging
+import signal
 import sys
 
-from PyQt6.QtCore import QtMsgType, qInstallMessageHandler
+from PyQt6.QtCore import QTimer, QtMsgType, qInstallMessageHandler
 from PyQt6.QtWidgets import QApplication
 
 from magnetstudio import __version__
+from magnetstudio import paths
 from magnetstudio.core.applog import install_exception_hooks, log_startup_banner, setup_logging
-from magnetstudio.core.settings import load_settings, settings_path
+from magnetstudio.core.migrate import migrate_legacy
+from magnetstudio.core.secrets import migrate_plaintext_key
+from magnetstudio.core.settings import load_settings, save_settings, settings_path
 from magnetstudio.ui.theme import apply_theme
 from magnetstudio.ui.main_window import MainWindow
 
@@ -15,13 +19,14 @@ log = logging.getLogger("magnetstudio")
 
 
 def _setup_fonts(app) -> None:
-    """Register assets/fonts with Qt; fetch the Hebrew bundle in the background if empty."""
+    """Register the app fonts with Qt; fetch the Hebrew bundle in the background if there are none."""
     from magnetstudio.core import fonts
-    fonts.register_qt_fonts()
-    if not fonts.custom_font_families() and fonts.FontDownloadWorker is not None:
-        log.info("assets/fonts is empty – downloading the default Hebrew font bundle")
-        worker = fonts.FontDownloadWorker(app)
-        worker.done.connect(lambda new: new and (fonts.register_qt_fonts(), _refresh_pickers()))
+    from magnetstudio.services.fonts_qt import FontDownloadWorker, register_qt_fonts
+    register_qt_fonts()
+    if not fonts.custom_font_families():
+        log.info("No app fonts found – downloading the default Hebrew font bundle")
+        worker = FontDownloadWorker(app)
+        worker.done.connect(lambda new: new and (register_qt_fonts(), _refresh_pickers()))
         worker.start()
         app._font_worker = worker  # keep a reference while it runs
 
@@ -44,9 +49,38 @@ def _qt_message_handler(msg_type, context, message) -> None:
     logging.getLogger("qt").log(_QT_LEVELS.get(msg_type, logging.WARNING), message)
 
 
+def _install_signal_handlers(app) -> None:
+    """Ctrl+C in a terminal / `kill` / logout → close the window normally (settings are saved).
+    Qt's event loop never returns to Python on its own, so a short timer lets the handler run."""
+    def stop(signum, _frame):
+        log.info("Signal %s – closing", signal.Signals(signum).name)
+        app.closeAllWindows()
+        app.quit()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        signal.signal(sig, stop)
+    timer = QTimer(app)
+    timer.timeout.connect(lambda: None)
+    timer.start(250)
+
+
+def _qt_versions() -> str:
+    from PyQt6.QtCore import PYQT_VERSION_STR, QT_VERSION_STR
+    return f"Qt {QT_VERSION_STR}, PyQt {PYQT_VERSION_STR}"
+
+
+def _prepare_user_data() -> dict:
+    """First-run work before the window: copy data from an old install, keychain the API key."""
+    migrate_legacy()
+    paths.user_templates_dir().mkdir(parents=True, exist_ok=True)
+    settings = load_settings()
+    if migrate_plaintext_key(settings):
+        save_settings(settings)
+    return settings
+
+
 def main() -> int:
     setup_logging()
-    log_startup_banner(__version__)
+    log_startup_banner(__version__, _qt_versions())
     window = None
 
     def show_error(msg: str) -> None:  # unexpected exception → toast, app keeps running
@@ -58,10 +92,11 @@ def main() -> int:
 
     app = QApplication(sys.argv)
     app.setApplicationName("MagnetStudio")
+    _install_signal_handlers(app)
     _setup_fonts(app)
     apply_theme(app)  # after fonts, so the UI font (Heebo) is available
-    log.info("Settings: %s", settings_path())
-    window = MainWindow(load_settings())
+    log.info("Settings: %s | data: %s", settings_path(), paths.data_dir())
+    window = MainWindow(_prepare_user_data())
     window.show()
     code = app.exec()
     log.info("MagnetStudio exiting (code %s)", code)

@@ -329,7 +329,7 @@ def load_template(path: str | Path, orientation: str = PORTRAIT) -> Template:
 # ============================================================== fonts
 # (font discovery / Qt registration / Pillow mapping live in core/fonts.py)
 
-from magnetstudio.core.fonts import (DEFAULT_FAMILIES, FONTS_DIR, HAS_RAQM, available_font_families,  # noqa: E402,F401
+from magnetstudio.core.fonts import (DEFAULT_FAMILIES, HAS_RAQM, available_font_families,  # noqa: E402,F401
                         font_index, get_font, resolve_font_path)
 
 

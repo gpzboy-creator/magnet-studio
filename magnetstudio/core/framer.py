@@ -55,7 +55,8 @@ def make_enhance_filter(settings: dict) -> PhotoFilter | None:
     Cloud style is tried first when configured; otherwise / on failure the local LUT runs."""
     if not settings.get("enhance"):
         return None
-    from magnetstudio.core.ai_enhancer import DEFAULT_GEMINI_MODEL, enhance, get_api_key
+    from magnetstudio.core.ai_enhancer import DEFAULT_GEMINI_MODEL, enhance
+    from magnetstudio.core.secrets import get_api_key
     preset = settings.get("enhance_preset") or "dye_sub"
     style = settings.get("cloud_style") or None
     key = get_api_key(settings)

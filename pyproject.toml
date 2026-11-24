@@ -15,6 +15,8 @@ dependencies = [
     "Pillow>=10.1",
     "watchdog>=4.0",
     "python-bidi>=0.4",      # Hebrew fallback when Pillow lacks libraqm (common on Windows)
+    "platformdirs>=4",       # OS-standard user folders (settings, templates, logs)
+    "keyring>=24",           # Gemini API key in Keychain / Credential Manager
 ]
 
 [project.optional-dependencies]
@@ -27,6 +29,7 @@ dev = [
     "numpy",                  # tests only
     "pypdf",                  # tests only
     "fonttools",              # converts variable fonts when downloading the font bundle
+    "pyinstaller>=6",         # packaging/build.py
 ]
 
 [project.gui-scripts]

@@ -137,7 +137,7 @@ def _run() -> int:
     for name, expect in (("land.jpg", (1181, 886)), ("port.jpg", (886, 1181)), ("port_exif.jpg", (886, 1181))):
         img = render_magnet(tmp / name, "7.5x10", pair_path)
         check(img.size == expect, f"{name:14s} → {img.size} ({'landscape' if expect[0] > expect[1] else 'portrait'} frame)")
-    from magnetstudio.core.printer import PrintJob, PrintMode
+    from magnetstudio.services.printer import PrintJob, PrintMode
     job = PrintJob(mode=PrintMode.THERMAL, printer_name="", photo_paths=[str(tmp / "land.jpg")],
                    magnet_size="7.5x10", frame_path=str(pair_path))
     check(job.render_images()[0].size == (1181, 886), "print jobs pick the variant too")

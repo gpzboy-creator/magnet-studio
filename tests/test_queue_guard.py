@@ -43,7 +43,7 @@ def _run() -> int:
     from magnetstudio.ui.theme import apply_theme
     apply_theme(app)
 
-    from magnetstudio.core.printer import DRY_RUN_PRINTER
+    from magnetstudio.services.printer import DRY_RUN_PRINTER
     from magnetstudio.core.settings import load_settings
     from magnetstudio.ui.components.queue_panel import REPRINT_CONFIRM_MS, QueueItemStatus, ReprintGuard
     from magnetstudio.ui.main_window import MainWindow

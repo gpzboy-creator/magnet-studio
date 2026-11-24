@@ -1,9 +1,6 @@
 """Application log: rotating file in the user's log folder + crash hooks.
 
-Log folder (MAGNETSTUDIO_LOG_DIR overrides):
-  Windows  %LOCALAPPDATA%\\MagnetStudio\\Logs
-  macOS    ~/Library/Logs/MagnetStudio            (also visible in Console.app)
-  Linux    $XDG_STATE_HOME/MagnetStudio/logs  (~/.local/state/…)
+Log folder: paths.log_dir() (OS-standard user log folder; MAGNETSTUDIO_LOG_DIR overrides).
 
 magnetstudio.log rotates at 1 MB, 5 backups kept (≈ 6 MB max).
 
@@ -15,12 +12,13 @@ from __future__ import annotations
 
 import logging
 import logging.handlers
-import os
 import platform
 import sys
 import threading
 from pathlib import Path
 from typing import Callable
+
+from magnetstudio import paths
 
 LOG_NAME = "magnetstudio.log"
 MAX_BYTES = 1_000_000
@@ -31,15 +29,7 @@ _file_handler: logging.Handler | None = None
 
 
 def log_dir() -> Path:
-    env = os.environ.get("MAGNETSTUDIO_LOG_DIR")
-    if env:
-        return Path(env)
-    home = Path.home()
-    if sys.platform == "win32":
-        return Path(os.environ.get("LOCALAPPDATA", home / "AppData" / "Local")) / "MagnetStudio" / "Logs"
-    if sys.platform == "darwin":
-        return home / "Library" / "Logs" / "MagnetStudio"
-    return Path(os.environ.get("XDG_STATE_HOME", home / ".local" / "state")) / "MagnetStudio" / "logs"
+    return paths.log_dir()
 
 
 def log_file() -> Path:
@@ -80,17 +70,14 @@ def setup_logging(level: int = logging.INFO, directory: Path | None = None, cons
     return path
 
 
-def log_startup_banner(version: str = "") -> None:
+def log_startup_banner(version: str = "", extra: str = "") -> None:
+    """First lines of every run: app/Python/OS versions (+ `extra`, e.g. Qt versions from app.py)."""
     log = logging.getLogger("magnetstudio")
     log.info("=" * 60)
     log.info("MagnetStudio %s starting – Python %s, %s %s", version, platform.python_version(),
              platform.system(), platform.release())
-    try:
-        from PyQt6.QtCore import PYQT_VERSION_STR, QT_VERSION_STR
-        from PIL import __version__ as pil_version
-        log.info("PyQt6 %s / Qt %s / Pillow %s", PYQT_VERSION_STR, QT_VERSION_STR, pil_version)
-    except Exception:  # noqa: BLE001 – banner must never fail
-        pass
+    if extra:
+        log.info(extra)
     log.info("Log file: %s", log_file())
 
 

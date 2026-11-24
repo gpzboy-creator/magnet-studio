@@ -14,7 +14,8 @@ ROOT = Path(__file__).resolve().parent.parent
 
 from PIL import Image, ImageDraw  # noqa: E402
 
-from magnetstudio.core import fonts  # noqa: E402
+from magnetstudio.core import fonts
+from magnetstudio.paths import BUNDLED_FONTS_DIR as BUNDLED  # noqa: E402
 from magnetstudio.core.templates import Template, TextLayer, compose_magnet, get_font, render_text_layer  # noqa: E402
 
 OUT = ROOT / "output" / "tests"
@@ -65,21 +66,22 @@ def _run() -> int:
     check(allf[:len(custom)] == custom, "custom fonts listed before system fonts")
     for fam in ("Heebo", "Assistant", "Rubik"):
         r, b = fonts.resolve_font_path(fam), fonts.resolve_font_path(fam, bold=True)
-        check(Path(r).parent == fonts.FONTS_DIR and r.endswith("Regular.ttf") and b.endswith("Bold.ttf"),
+        check(Path(r).parent == BUNDLED and r.endswith("Regular.ttf") and b.endswith("Bold.ttf"),
               f"{fam}: regular → {Path(r).name}, bold → {Path(b).name}")
     check(fonts.resolve_font_path("hEeBo") == fonts.resolve_font_path("Heebo"), "case-insensitive lookup")
-    check(Path(fonts.resolve_font_path("No Such Font")).parent == fonts.FONTS_DIR,
+    check(Path(fonts.resolve_font_path("No Such Font")).parent == BUNDLED,
           "unknown family falls back to a bundled Hebrew font")
 
     print("2) Qt registration")
     from PyQt6.QtGui import QFontDatabase
     from PyQt6.QtWidgets import QApplication
     app = QApplication.instance() or QApplication(sys.argv)  # noqa: F841
-    qt_fams = fonts.register_qt_fonts()
+    from magnetstudio.services.fonts_qt import register_qt_fonts
+    qt_fams = register_qt_fonts()
     db_fams = set(QFontDatabase.families())
     check({"Heebo", "Assistant", "Rubik", "Varela Round"} <= db_fams, f"QFontDatabase knows {sorted(set(qt_fams))}")
-    check(fonts.register_qt_fonts() == [], "registration is idempotent")
-    check(all(fonts.resolve_font_path(q) and Path(fonts.resolve_font_path(q)).parent == fonts.FONTS_DIR
+    check(register_qt_fonts() == [], "registration is idempotent")
+    check(all(fonts.resolve_font_path(q) and Path(fonts.resolve_font_path(q)).parent == BUNDLED
               for q in qt_fams), "every Qt family name maps back to its file for Pillow")
 
     print("3) Hebrew at 300 DPI – no glyph clipping")
@@ -150,13 +152,10 @@ def _run() -> int:
     else:
         print("  – no variable font available, skipped (set MAGNET_VF=/path/to/VF.ttf)")
 
-    print("6) Add font from disk – live refresh (isolated fonts dir)")
-    real_dir = fonts.FONTS_DIR
-    tmp = Path(tempfile.mkdtemp(prefix="msfonts_"))
+    print("6) Add font from disk – live refresh (into the user fonts dir, isolated per test)")
+    real_dir = BUNDLED
+    tmp = fonts.user_fonts_dir()
     try:
-        for f in real_dir.glob("*.ttf"):
-            shutil.copy(f, tmp)
-        fonts.FONTS_DIR = tmp
         fonts.refresh_fonts()
         donor = next((p for fam in ("FreeSerif", "DejaVu Serif", "Liberation Serif")
                       if (p := (fonts.font_index().get(fam) or {}).get("Regular"))), None)
@@ -170,7 +169,8 @@ def _run() -> int:
         fam = panel._add_font_from_disk(donor)
         ms = (time.perf_counter() - t0) * 1000
         check(fam in fonts.custom_font_families() and (tmp / Path(donor).name).exists(),
-              f"'{fam}' copied into fonts dir and listed as custom ({ms:.0f} ms)")
+              f"'{fam}' copied into the user fonts dir and listed as custom ({ms:.0f} ms)")
+        check(not (BUNDLED / Path(donor).name).exists(), "nothing written into the (read-only) bundled folder")
         check(panel.font_picker.findData(fam) >= 0 and panel.font_picker.findText("★ " + fam) >= 0,
               f"picker refreshed without restart (★ {fam}; it moved from system → custom, {before}→"
               f"{panel.font_picker.count()} items)")
@@ -197,15 +197,16 @@ def _run() -> int:
         FontPicker.refresh_all()
         check(other.currentData() == "Heebo", "other open pickers keep their selection after refresh")
     finally:
-        fonts.FONTS_DIR = real_dir
-        fonts.refresh_fonts()
         shutil.rmtree(tmp, ignore_errors=True)
+        fonts.refresh_fonts()
 
-    print("7) Default bundle downloader")
+    print("7) Default bundle downloader (as if the package shipped without fonts)")
     tmp = Path(tempfile.mkdtemp(prefix="msfonts_dl_"))
     real_download, real_instance = fonts._download, fonts._instance_static
+    real_dirs, real_user = fonts.font_dirs, fonts.user_fonts_dir
     try:
-        fonts.FONTS_DIR = tmp
+        fonts.font_dirs = lambda: [tmp]
+        fonts.user_fonts_dir = lambda: tmp
         src_dir = real_dir
 
         def fake_download(url, dst, timeout):  # serve from the bundled files instead of the network
@@ -242,7 +243,7 @@ def _run() -> int:
             check(len(new) >= 4, f"ONLINE: downloaded from Google Fonts: {sorted(new)}")
     finally:
         fonts._download, fonts._instance_static = real_download, real_instance
-        fonts.FONTS_DIR = real_dir
+        fonts.font_dirs, fonts.user_fonts_dir = real_dirs, real_user
         fonts.refresh_fonts()
         shutil.rmtree(tmp, ignore_errors=True)
 

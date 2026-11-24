@@ -24,9 +24,17 @@ from pathlib import Path
 
 from PIL import ImageFont, features
 
+from magnetstudio import paths
 from magnetstudio.paths import BUNDLED_FONTS_DIR
 
-FONTS_DIR = BUNDLED_FONTS_DIR
+
+def font_dirs() -> list[Path]:
+    """Folders with app fonts: bundled (read-only) + the user's added / downloaded fonts."""
+    return [BUNDLED_FONTS_DIR, paths.user_fonts_dir()]
+
+
+def user_fonts_dir() -> Path:
+    return paths.user_fonts_dir()
 FONT_EXTS = (".ttf", ".otf")
 SYSTEM_EXTS = (".ttf", ".otf", ".ttc")
 HAS_RAQM = features.check_feature("raqm")
@@ -88,10 +96,10 @@ def _scan(paths, recursive: bool, exts) -> dict[str, dict[str, str]]:
 
 
 def refresh_fonts(rescan_system: bool = False) -> None:
-    """Rescan assets/fonts/ (cheap) and optionally system folders (slow, cached)."""
+    """Rescan the app font folders (cheap) and optionally system folders (slow, cached)."""
     global _custom, _system
     with _lock:
-        _custom = _scan([FONTS_DIR], False, FONT_EXTS) if FONTS_DIR.is_dir() else {}
+        _custom = _scan([d for d in font_dirs() if d.is_dir()], False, FONT_EXTS)
         if _system is None or rescan_system:
             _system = _scan(_system_dirs(), True, SYSTEM_EXTS)
         _aliases.clear()
@@ -213,33 +221,26 @@ def get_font(family: str, size: int, bold: bool = False, font_path: str = "") ->
     return font
 
 
-# ============================================================== Qt registration
+# ============================================================== Qt bookkeeping (no Qt import here)
 
-def register_qt_fonts() -> list[str]:
-    """Register every custom font with Qt (idempotent). Needs a QGuiApplication."""
-    try:
-        from PyQt6.QtGui import QFontDatabase, QGuiApplication
-    except ImportError:
-        return []
-    if QGuiApplication.instance() is None:
-        return []
-    _ensure_scanned()
-    added = []
+def note_qt_families(path: str, families: list[str]) -> None:
+    """Record the names Qt registered a font file under (called by services/fonts_qt.py)."""
     with _lock:
-        for styles in _custom.values():
-            for path in styles.values():
-                if path in _qt_registered:
-                    continue
-                fid = QFontDatabase.addApplicationFont(path)
-                fams = list(QFontDatabase.applicationFontFamilies(fid)) if fid >= 0 else []
-                _qt_registered[path] = fams
-                added += fams
-        canon_by_path = {p: _family_of_path(p) for p in _qt_registered}
-        for path, fams in _qt_registered.items():
-            for q in fams:
-                if canon_by_path[path]:
-                    _aliases.setdefault(q.lower(), canon_by_path[path])
-    return sorted(set(added))
+        _qt_registered[path] = families
+        canon = _family_of_path(path)
+        if canon:
+            for q in families:
+                _aliases.setdefault(q.lower(), canon)
+
+
+def custom_font_paths() -> list[str]:
+    _ensure_scanned()
+    with _lock:
+        return [path for styles in _custom.values() for path in styles.values()]
+
+
+def is_qt_registered(path: str) -> bool:
+    return path in _qt_registered
 
 
 def qt_family(family: str) -> str:
@@ -258,25 +259,26 @@ def _sha1(path: Path) -> str:
 
 
 def add_font_file(src: str | Path) -> str:
-    """Copy a TTF/OTF into assets/fonts/, refresh the registry and Qt. Returns the family name."""
+    """Copy a TTF/OTF into the user fonts folder and refresh the registry. Returns the family name.
+    (The UI then calls services.fonts_qt.register_qt_fonts() so previews can use it.)"""
     src = Path(src)
     if src.suffix.lower() not in FONT_EXTS:
         raise ValueError("רק קובצי TTF או OTF נתמכים")
     names = font_names(src)
     if not names:
         raise ValueError(f"הקובץ {src.name} אינו גופן תקין")
-    FONTS_DIR.mkdir(parents=True, exist_ok=True)
-    dst = FONTS_DIR / src.name
+    fonts_dir = user_fonts_dir()
+    fonts_dir.mkdir(parents=True, exist_ok=True)
+    dst = fonts_dir / src.name
     if dst.exists() and dst.resolve() != src.resolve():
         if _sha1(dst) != _sha1(src):  # same name, different font → keep both
             n = 2
-            while (FONTS_DIR / f"{src.stem}-{n}{src.suffix}").exists():
+            while (fonts_dir / f"{src.stem}-{n}{src.suffix}").exists():
                 n += 1
-            dst = FONTS_DIR / f"{src.stem}-{n}{src.suffix}"
+            dst = fonts_dir / f"{src.stem}-{n}{src.suffix}"
     if not dst.exists():
         shutil.copy2(src, dst)
     refresh_fonts()
-    register_qt_fonts()
     return names[0]
 
 
@@ -319,18 +321,20 @@ def _instance_static(vf_path: Path, family: str) -> list[Path]:
 
 
 def ensure_default_fonts(force: bool = False, timeout: float = 15.0) -> list[str]:
-    """Download the Hebrew font bundle if assets/fonts/ has no fonts. Returns new files.
-    Safe offline: failures are skipped silently."""
-    FONTS_DIR.mkdir(parents=True, exist_ok=True)
-    if not force and any(p.suffix.lower() in FONT_EXTS for p in FONTS_DIR.iterdir()):
+    """Download the Hebrew font bundle into the user fonts folder if no app fonts exist at all
+    (the bundle normally ships inside the package). Returns new files. Safe offline."""
+    have = [p for d in font_dirs() if d.is_dir() for p in d.iterdir() if p.suffix.lower() in FONT_EXTS]
+    if not force and have:
         return []
-    lic_dir = FONTS_DIR / "licenses"
+    fonts_dir = user_fonts_dir()
+    fonts_dir.mkdir(parents=True, exist_ok=True)
+    lic_dir = fonts_dir / "licenses"
     lic_dir.mkdir(exist_ok=True)
     new: list[str] = []
     for d, fname, variable in DEFAULT_FONTS:
         url = GOOGLE_FONTS_RAW.format(dir=d, file=urllib.request.quote(fname))
         family = fname.split("[")[0].split("-")[0]
-        dst = FONTS_DIR / (f"{family}-VF.ttf" if variable else fname)
+        dst = fonts_dir / (f"{family}-VF.ttf" if variable else fname)
         if not _download(url, dst, timeout):
             continue
         new += [p.name for p in (_instance_static(dst, family) if variable else [dst])]
@@ -338,16 +342,3 @@ def ensure_default_fonts(force: bool = False, timeout: float = 15.0) -> list[str
     if new:
         refresh_fonts()
     return new
-
-
-try:
-    from PyQt6.QtCore import QThread, pyqtSignal
-
-    class FontDownloadWorker(QThread):
-        """Runs ensure_default_fonts() off the GUI thread; register Qt fonts on `done`."""
-        done = pyqtSignal(list)
-
-        def run(self) -> None:
-            self.done.emit(ensure_default_fonts())
-except ImportError:
-    FontDownloadWorker = None  # type: ignore[assignment,misc]

@@ -11,7 +11,7 @@ dist/
 # App output / local state (never commit)
 output/
 **/_generated/
-config/settings.json.corrupt-*
+config/            # legacy pre-0.9 location; settings now live in the user's config folder
 *.log
 
 # OS / editors

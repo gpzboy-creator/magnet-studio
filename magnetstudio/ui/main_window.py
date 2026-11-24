@@ -19,12 +19,13 @@ from PyQt6.QtWidgets import (QAbstractSpinBox, QApplication, QCheckBox, QComboBo
                              QToolButton, QVBoxLayout, QWidget)
 
 from magnetstudio.core.framer import is_template, make_enhance_filter, render_magnet
-from magnetstudio.core.printer import (DRY_RUN_PRINTER, PrintJob, PrintMode, PrintWorker,
-                          get_available_printers, is_dry_run, is_printer_available)
-from magnetstudio.core.settings import ROOT, TEMPLATES_DIR, save_settings
+from magnetstudio import paths
+from magnetstudio.core.settings import save_settings
 from magnetstudio.core.sizes import MAGNET_SIZES
 from magnetstudio.core.templates import load_template
 from magnetstudio.core.watcher import FolderWatcher
+from magnetstudio.services.printer import (DRY_RUN_PRINTER, PrintJob, PrintMode, PrintWorker,
+                                          get_available_printers, is_dry_run, is_printer_available)
 from magnetstudio.ui.designer import TemplateDesigner
 from magnetstudio.ui.settings_dialog import SettingsDialog
 from magnetstudio.ui.toast import Toast
@@ -35,6 +36,18 @@ log = logging.getLogger(__name__)
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
 
+
+
+def frame_files() -> list[Path]:
+    """Frames for the picker: the user's templates, then the bundled samples (user wins on a name
+    clash). JSON templates first, then ready PNG overlays."""
+    seen: dict[str, Path] = {}
+    for d in paths.template_dirs():
+        if d.is_dir():
+            for f in d.iterdir():
+                if f.suffix.lower() in (".json", ".png") and not f.name.startswith(("_", ".")):
+                    seen.setdefault(f.name, f)
+    return sorted(seen.values(), key=lambda f: (f.suffix.lower() != ".json", f.stem.lower()))
 
 class _WatcherBridge(QObject):
     """watchdog calls back on its own thread; this hops the event to the GUI thread."""
@@ -514,10 +527,8 @@ class MainWindow(QMainWindow):
         self.frame_box.blockSignals(True)
         self.frame_box.clear()
         self.frame_box.addItem("ללא מסגרת", None)
-        for f in sorted(TEMPLATES_DIR.glob("*.json")):
-            self.frame_box.addItem(f"📐 {f.stem}", str(f))
-        for f in sorted(TEMPLATES_DIR.glob("*.png")):
-            self.frame_box.addItem(f"🖼 {f.stem}", str(f))
+        for f in frame_files():
+            self.frame_box.addItem(f"{'📐' if f.suffix == '.json' else '🖼'} {f.stem}", str(f))
         idx = self.frame_box.findData(str(current)) if current else 0
         self.frame_box.setCurrentIndex(max(0, idx))
         self.frame_box.blockSignals(False)
@@ -576,7 +587,6 @@ class MainWindow(QMainWindow):
 
     # ================================================================ printing
     def _make_job(self, photo_path: str, copies: int, tag: str = "") -> PrintJob:
-        out = Path(self.settings.get("output_folder") or "output")
         return PrintJob(
             mode=PrintMode(self.mode_box.currentData()),
             printer_name=self.printer_box.currentText() or DRY_RUN_PRINTER,
@@ -585,7 +595,7 @@ class MainWindow(QMainWindow):
             frame_path=self.frame_box.currentData(),
             photo_filter=make_enhance_filter(self.settings),
             copies=copies,
-            out_dir=out if out.is_absolute() else ROOT / out,
+            out_dir=paths.resolve_output_dir(self.settings.get("output_folder")),
             job_name=f"MagnetStudio – {Path(photo_path).name}",
             layout_opts={"margin_cm": self.settings["a4_margin_cm"],
                          "gap_cm": self.settings["a4_gap_cm"],

@@ -6,7 +6,7 @@ Local path ("Fast AI Enhancer") – two C-level passes, no Python per-pixel work
        gentle contrast, black/white output limits (Dye-Sub prints run darker & flatter)
     In the app it runs after fit_to_size (print resolution): ~30 ms for 15x20 cm.
 
-Cloud path (optional, needs GEMINI_API_KEY + internet)
+Cloud path (optional, needs a Gemini API key – core/secrets.py – and internet)
     Sends the image to a Gemini image model with a style prompt. Any failure
     (no key, offline, timeout, bad response) falls back to the local LUT automatically.
 
@@ -15,10 +15,9 @@ All outputs carry dpi=(300, 300).
 from __future__ import annotations
 
 import base64
-import logging
 import io
 import json
-import os
+import logging
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -118,10 +117,6 @@ class CloudUnavailable(RuntimeError):
     pass
 
 
-def get_api_key(settings: dict | None = None) -> str:
-    return ((settings or {}).get("gemini_api_key") or os.environ.get("GEMINI_API_KEY") or "").strip()
-
-
 def enhance_cloud(img: Image.Image, api_key: str, style: str = "print_ready",
                   model: str = DEFAULT_GEMINI_MODEL, timeout: float = 25.0) -> Image.Image:
     """Gemini image edit. Raises CloudUnavailable on any failure."""
@@ -170,40 +165,3 @@ def enhance(img: Image.Image, preset: str = "dye_sub", cloud_style: str | None =
             log.warning("Cloud enhance (%s) unavailable – local LUT used: %s", cloud_style, e)
             return enhance_local(img, preset), "local-fallback"
     return enhance_local(img, preset), "local"
-
-
-# ============================================================== worker (Qt)
-
-try:
-    from PyQt6.QtCore import QThread, pyqtSignal
-
-    class EnhancementWorker(QThread):
-        """Enhances images off the GUI thread. Emits (index, image, engine) per image."""
-        enhanced = pyqtSignal(int, object, str)
-        fallback = pyqtSignal(str)        # reason the cloud call failed
-        failed = pyqtSignal(str)
-
-        def __init__(self, images: list[Image.Image], preset: str = "dye_sub",
-                     cloud_style: str | None = None, api_key: str = "",
-                     model: str = DEFAULT_GEMINI_MODEL, parent=None):
-            super().__init__(parent)
-            self.images, self.preset = images, preset
-            self.cloud_style, self.api_key, self.model = cloud_style, api_key, model
-
-        def run(self) -> None:
-            for i, img in enumerate(self.images):
-                try:
-                    if self.cloud_style:
-                        try:
-                            self.enhanced.emit(i, enhance_cloud(img, self.api_key, self.cloud_style,
-                                                                self.model), "cloud")
-                            continue
-                        except CloudUnavailable as e:
-                            log.warning("Cloud enhance unavailable – rest of batch local: %s", e)
-                            self.fallback.emit(str(e))
-                            self.cloud_style = None  # stay local for the rest of this batch
-                    self.enhanced.emit(i, enhance_local(img, self.preset), "local")
-                except Exception as e:
-                    self.failed.emit(f"שיפור תמונה נכשל: {e}")
-except ImportError:  # core stays usable without Qt (scripts, tests)
-    EnhancementWorker = None  # type: ignore[assignment]
