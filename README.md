@@ -7,7 +7,13 @@ A4 sheets. Hot folder, Hebrew text frames, a visual frame designer and an AI fra
 אפליקציית דסקטופ להלבשת מסגרות והדפסת מגנטים מאירועים. פרטים מלאים – ארכיטקטורה, מוסכמות וסטטוס –
 ב-[CLAUDE.md](CLAUDE.md).
 
-## Easiest: the self-updating launcher (no Python, no install)
+## Try it live in the browser (nothing to install)
+
+**<https://codespaces.new/gpzboy-creator/magnet-studio?quickstart=1>** – GitHub Codespaces runs the app in
+the cloud and shows it in a browser tab ("MagnetStudio (live)", port 6080). Every change pushed to GitHub
+shows up within ~20 s: the app restarts by itself and the tab reconnects. Details: [.devcontainer/LIVE.md](.devcontainer/LIVE.md).
+
+## The self-updating launcher (no Python, no install)
 
 Download `MagnetStudio-Launcher-Windows.zip` (or `-macOS.zip`) once from the
 [latest release](https://github.com/gpzboy-creator/magnet-studio/releases/tag/latest), unzip it into a

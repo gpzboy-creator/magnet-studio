@@ -1,0 +1,18 @@
+{
+  // GitHub Codespaces: MagnetStudio running in the cloud, shown in a browser tab (noVNC).
+  // Open: https://codespaces.new/gpzboy-creator/magnet-studio?quickstart=1
+  "name": "MagnetStudio – live preview",
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bookworm",
+  "hostRequirements": { "cpus": 2 },
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+  "postStartCommand": "bash .devcontainer/start.sh",
+  "forwardPorts": [6080],
+  "portsAttributes": {
+    "6080": { "label": "MagnetStudio (live)", "onAutoForward": "openBrowser" },
+    "5900": { "label": "VNC (internal)", "onAutoForward": "ignore" }
+  },
+  "customizations": {
+    "codespaces": { "openFiles": [".devcontainer/LIVE.md"] },
+    "vscode": { "extensions": ["ms-python.python"] }
+  }
+}

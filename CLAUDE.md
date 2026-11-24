@@ -44,6 +44,7 @@ AGENTS.md               כניסה לסוכנים אחרים → מפנה לכא
 docs/                   ARCHITECTURE.md · JOURNAL.md (יומן) · screenshots/ · history/ (גרסאות CLAUDE.md, מפרטי AI Studio)
 run.bat / run.command / run.sh   הרצה מהריפו בלי התקנה (.venv מקומית)
 launcher/               MagnetStudio.bat / .command – מפעיל שמוריד את ה-build האחרון מהשחרור ומפעיל
+.devcontainer/          Codespaces: התוכנה בענן בלשונית דפדפן (live.py, setup.sh, start.sh, LIVE.md)
 packaging/              magnetstudio.spec + build.py (PyInstaller) + launcher.py + ensure_env.py
 magnetstudio/
   __init__.py           __version__
@@ -145,7 +146,9 @@ python packaging/build.py                               # → dist/MagnetStudio/
 פיצול המחולל · תיקיות משתמש + keychain + core בלי Qt + PyInstaller · PrintQueueController.
 26 בדיקות עוברות (Linux). הקוד בריפו הפרטי `gpzboy-creator/magnet-studio` (ענף `main`).
 **הורדה (נבנית אוטומטית בכל push):** https://github.com/gpzboy-creator/magnet-studio/releases/tag/latest
-**מפעיל שמתעדכן לבד (מומלץ לשחר):** `launcher/MagnetStudio.bat` / `.command` – בודק עדכון, מוריד, מפעיל; מפתח GitHub לקריאה בלבד.
+**תצוגה חיה בדפדפן (בדיקת כל שינוי, בלי התקנה):** https://codespaces.new/gpzboy-creator/magnet-studio?quickstart=1
+  (`.devcontainer/` – Qt VNC + noVNC, `live.py` מושך מ-GitHub כל 20 ש' ומפעיל מחדש)
+**מפעיל שמתעדכן לבד:** `launcher/MagnetStudio.bat` / `.command` – בודק עדכון, מוריד, מפעיל; מפתח GitHub לקריאה בלבד.
 **הרצה מהריפו:** `run.bat` / `run.command` / `run.sh` (נבדק ב-Linux, וב-CI על Windows/Mac – עם Python ועם uv).
 
 **לא נבדק במציאות:** מדפסת טרמית אמיתית (גודל נייר מותאם בדרייבר) · Gemini חי (שמות מודלים) ·
@@ -154,6 +157,7 @@ python packaging/build.py                               # → dist/MagnetStudio/
 **הבא בתור (הצעות):**
 1. **ניקוד עברי נחתך ב-Windows** (נמצא ב-CI: 0.2–1% דיו + יישור לימין) – לבדוק libraqm/python-bidi ב-Windows ולתקן.
    + לתקן את `test_fonts` (גופן "תורם" לפי מערכת הפעלה; לא לפתוח דיאלוג) ואת סף הזמן ב-`test_ai_enhancer`.
-2. להוריד מהקישור, להריץ על Windows/Mac אמיתי ולבדוק עם מדפסת אמיתית באירוע ניסיון.
+2. לפתוח את התצוגה החיה ב-Codespaces בפעם הראשונה ולוודא שעולה (setup.sh לא נבדק ב-Codespaces אמיתי; הקלדה בעברית ב-noVNC).
+   אחר כך: להריץ על Windows/Mac אמיתי ולבדוק עם מדפסת אמיתית באירוע ניסיון.
 3. אייקון לאפליקציה (`.ico` / `.icns`) + חתימה (macOS notarization) + installer (Inno Setup / DMG).
 4. CI קיים (`.github/workflows/build.yml`); אחרי התיקונים – להפוך את הבדיקות לחוסמות.

@@ -19,3 +19,6 @@ config/            # legacy pre-0.9 location; settings now live in the user's co
 Thumbs.db
 .vscode/
 .idea/
+
+# Codespaces live preview
+test-photos/
