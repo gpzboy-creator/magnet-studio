@@ -1,4 +1,4 @@
-<# : MagnetStudio launcher for Windows - double-click it. (Lines up to "#>" are batch, the rest is PowerShell.)
+<# : MagnetStudio launcher for Windows - double-click it. The batch part ends at the closing comment mark; the rest is PowerShell.
 @echo off
 setlocal
 set "MS_SELF=%~f0"
