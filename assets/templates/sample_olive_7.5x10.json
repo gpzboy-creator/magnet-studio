@@ -1,0 +1,249 @@
+{
+  "kind": "pair",
+  "version": 2,
+  "name": "זית עדין – דוגמה",
+  "variants": {
+    "portrait": {
+      "name": "נועה ואורי",
+      "canvas": {
+        "profile": "7.5x10",
+        "width": 886,
+        "height": 1181,
+        "bg_color": "#FBF8F1FF",
+        "orientation": "portrait"
+      },
+      "slots": [
+        {
+          "x": 35,
+          "y": 35,
+          "w": 780,
+          "h": 932,
+          "radius": 0,
+          "id": "1539de44"
+        }
+      ],
+      "texts": [
+        {
+          "text": "נועה",
+          "x": 474,
+          "y": 985,
+          "width": 154,
+          "font_family": "Rubik",
+          "font_path": "",
+          "font_size": 75,
+          "bold": true,
+          "color": "#6B6B3AFF",
+          "align": "center",
+          "direction": "auto",
+          "line_spacing": 1.0,
+          "stroke_width": 0,
+          "stroke_color": "#FFFFFFFF",
+          "z": 10,
+          "id": "44dfa566"
+        },
+        {
+          "text": "אורי",
+          "x": 222,
+          "y": 985,
+          "width": 135,
+          "font_family": "Rubik",
+          "font_path": "",
+          "font_size": 75,
+          "bold": true,
+          "color": "#6B6B3AFF",
+          "align": "center",
+          "direction": "auto",
+          "line_spacing": 1.0,
+          "stroke_width": 0,
+          "stroke_color": "#FFFFFFFF",
+          "z": 10,
+          "id": "b09dd1b3"
+        },
+        {
+          "text": "13.8.2026",
+          "x": 35,
+          "y": 1084,
+          "width": 780,
+          "font_family": "Assistant",
+          "font_path": "",
+          "font_size": 41,
+          "bold": false,
+          "color": "#727253FF",
+          "align": "center",
+          "direction": "auto",
+          "line_spacing": 1.0,
+          "stroke_width": 0,
+          "stroke_color": "#FFFFFFFF",
+          "z": 10,
+          "id": "a3bc15fd"
+        }
+      ],
+      "graphics": [
+        {
+          "path": "sample_olive_7.5x10_assets/emblem_heart_60d2b62e.png",
+          "x": 382,
+          "y": 996,
+          "w": 68,
+          "h": 68,
+          "opacity": 1.0,
+          "z": 6,
+          "id": "c60ed1c9"
+        },
+        {
+          "path": "sample_olive_7.5x10_assets/flourish_olive_74ae752b.png",
+          "x": -5,
+          "y": -5,
+          "w": 250,
+          "h": 250,
+          "opacity": 1.0,
+          "z": 3,
+          "id": "e6ca30d3"
+        },
+        {
+          "path": "sample_olive_7.5x10_assets/flourish_olive_9970ab24.png",
+          "x": 575,
+          "y": 735,
+          "w": 250,
+          "h": 250,
+          "opacity": 1.0,
+          "z": 3,
+          "id": "1ba5e781"
+        }
+      ],
+      "credit": {
+        "text": "שחר לוי גונן | 0525860073",
+        "side": "right",
+        "rotation": 90,
+        "font_family": "Heebo",
+        "font_size": 0,
+        "bold": false,
+        "color": "#6C757DFF",
+        "align": "center",
+        "margin": -1,
+        "enabled": true
+      },
+      "version": 2
+    },
+    "landscape": {
+      "name": "נועה ואורי",
+      "canvas": {
+        "profile": "7.5x10",
+        "width": 1181,
+        "height": 886,
+        "bg_color": "#FBF8F1FF",
+        "orientation": "landscape"
+      },
+      "slots": [
+        {
+          "x": 35,
+          "y": 35,
+          "w": 1075,
+          "h": 705,
+          "radius": 0,
+          "id": "2c10627e"
+        }
+      ],
+      "texts": [
+        {
+          "text": "נועה",
+          "x": 619,
+          "y": 758,
+          "width": 146,
+          "font_family": "Rubik",
+          "font_path": "",
+          "font_size": 71,
+          "bold": true,
+          "color": "#6B6B3AFF",
+          "align": "center",
+          "direction": "auto",
+          "line_spacing": 1.0,
+          "stroke_width": 0,
+          "stroke_color": "#FFFFFFFF",
+          "z": 10,
+          "id": "9fda706a"
+        },
+        {
+          "text": "אורי",
+          "x": 380,
+          "y": 758,
+          "width": 128,
+          "font_family": "Rubik",
+          "font_path": "",
+          "font_size": 71,
+          "bold": true,
+          "color": "#6B6B3AFF",
+          "align": "center",
+          "direction": "auto",
+          "line_spacing": 1.0,
+          "stroke_width": 0,
+          "stroke_color": "#FFFFFFFF",
+          "z": 10,
+          "id": "66adad8a"
+        },
+        {
+          "text": "13.8.2026",
+          "x": 60,
+          "y": 776,
+          "width": 147,
+          "font_family": "Assistant",
+          "font_path": "",
+          "font_size": 37,
+          "bold": false,
+          "color": "#727253FF",
+          "align": "left",
+          "direction": "auto",
+          "line_spacing": 1.0,
+          "stroke_width": 0,
+          "stroke_color": "#FFFFFFFF",
+          "z": 10,
+          "id": "3a17ccee"
+        }
+      ],
+      "graphics": [
+        {
+          "path": "sample_olive_7.5x10_assets/emblem_heart_11ff52d8.png",
+          "x": 532,
+          "y": 768,
+          "w": 64,
+          "h": 64,
+          "opacity": 1.0,
+          "z": 6,
+          "id": "cdd4ce6a"
+        },
+        {
+          "path": "sample_olive_7.5x10_assets/flourish_olive_23919ca5.png",
+          "x": -1,
+          "y": -1,
+          "w": 226,
+          "h": 226,
+          "opacity": 1.0,
+          "z": 3,
+          "id": "a7ce8c8a"
+        },
+        {
+          "path": "sample_olive_7.5x10_assets/flourish_olive_70a35c59.png",
+          "x": 894,
+          "y": 530,
+          "w": 226,
+          "h": 226,
+          "opacity": 1.0,
+          "z": 3,
+          "id": "c2e80661"
+        }
+      ],
+      "credit": {
+        "text": "שחר לוי גונן | 0525860073",
+        "side": "right",
+        "rotation": 90,
+        "font_family": "Heebo",
+        "font_size": 0,
+        "bold": false,
+        "color": "#6C757DFF",
+        "align": "center",
+        "margin": -1,
+        "enabled": true
+      },
+      "version": 2
+    }
+  }
+}
