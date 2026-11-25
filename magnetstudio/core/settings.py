@@ -21,15 +21,31 @@ from magnetstudio import paths
 
 DEFAULTS = {
     "magnet_size": "7.5x10",
-    "print_mode": "thermal",
+    "print_mode": "sheet",       # sheet (rows × cols on paper) · thermal (magnet per page) · a4
     "frame": None,
+    "frame_landscape": None,     # PNG frame for landscape photos ("frame" = portrait / JSON)
+    "sheet_printer": "",
+    "paper": "15x20",            # 15x20 = 6x8" (Mitsubishi CP-D80DW and other dye-sub printers)
+    "sheet_rows": 2,
+    "sheet_cols": 2,
+    "sheet_margins_mm": [1.5, 1.5, 1.5, 1.5],   # top, bottom, right, left
+    "mark_width": "medium",
+    "theme_mode": "auto",        # auto (follow Windows/macOS) · light · dark
+    "exposure": 0,               # global sliders, −100…100
+    "contrast": 0,
+    "sharpness": 0,
+    "cost_per_sheet": 0.0,       # event cost tracking (MagnetOti-style)
+    "event_sheets": 0,           # sheets printed since "reset event"
+    "event_cost": 0.0,
+    "today_date": "",
+    "today_sheets": 0,
     "watch_folder": "",
     "output_folder": "",         # "" = Documents/MagnetStudio/output (paths.resolve_output_dir)
     "thermal_printer": "",
     "a4_printer": "",
     "a4_margin_cm": 0.3,
     "a4_gap_cm": 0.2,
-    "crop_marks": True,
+    "crop_marks": False,
     "enhance": False,            # Fast AI Enhancer (local LUT) before framing
     "enhance_preset": "dye_sub",
     "cloud_style": None,         # optional Gemini style, e.g. "print_ready"

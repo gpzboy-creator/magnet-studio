@@ -30,13 +30,16 @@ def is_template(frame_path: str | Path | None) -> bool:
 
 def render_magnet(photo_paths: list[str | Path] | str | Path, size_key: str,
                   frame_path: str | Path | None = None,
-                  photo_filter: PhotoFilter | None = None) -> Image.Image:
+                  photo_filter: PhotoFilter | None = None,
+                  frame_landscape: str | Path | None = None) -> Image.Image:
     """Photo(s) → finished magnet.
 
     Order: load → fit/crop to print size → photo_filter (enhancer) → frame on top.
     PNG frame / no frame: first photo fitted to `size_key`.
     JSON template: canvas size comes from the template; photos fill its slots.
     JSON pair (portrait + landscape): the variant matching the first photo's orientation.
+    PNG pair: `frame_path` for portrait photos, `frame_landscape` for landscape ones (either may be
+    missing – then the other one is used for every photo).
     """
     paths = [photo_paths] if isinstance(photo_paths, (str, Path)) else list(photo_paths)
     if is_template(frame_path):
@@ -47,12 +50,38 @@ def render_magnet(photo_paths: list[str | Path] | str | Path, size_key: str,
     photo = fit_to_size(load_image(paths[0]), get_size(size_key))
     if photo_filter:
         photo = photo_filter(photo)
-    return apply_frame(photo, frame_path)
+    frame = frame_path
+    if frame_landscape and (photo.width > photo.height or not frame_path):
+        frame = frame_landscape
+    return apply_frame(photo, frame)
+
+
+def adjust(img: Image.Image, exposure: float = 0, contrast: float = 0, sharpness: float = 0) -> Image.Image:
+    """Global sliders (−100…100): exposure (brightness), contrast, sharpness. 0 = unchanged."""
+    from PIL import ImageEnhance
+    if exposure:
+        img = ImageEnhance.Brightness(img).enhance(1 + exposure / 200)
+    if contrast:
+        img = ImageEnhance.Contrast(img).enhance(1 + contrast / 200)
+    if sharpness:
+        img = ImageEnhance.Sharpness(img).enhance(1 + sharpness / 50)
+    img.info["dpi"] = (DPI, DPI)
+    return img
 
 
 def make_enhance_filter(settings: dict) -> PhotoFilter | None:
     """Photo filter from app settings, or None when the enhancer is off.
     Cloud style is tried first when configured; otherwise / on failure the local LUT runs."""
+    adj = {k: float(settings.get(k) or 0) for k in ("exposure", "contrast", "sharpness")}
+    base = _enhance_filter(settings)
+    if not any(adj.values()):
+        return base
+    if base is None:
+        return lambda img: adjust(img, **adj)
+    return lambda img: adjust(base(img), **adj)
+
+
+def _enhance_filter(settings: dict) -> PhotoFilter | None:
     if not settings.get("enhance"):
         return None
     from magnetstudio.core.ai_enhancer import DEFAULT_GEMINI_MODEL, enhance

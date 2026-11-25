@@ -41,6 +41,44 @@ A4_CM = (21.0, 29.7)
 A4_PX = (cm_to_px(A4_CM[0]), cm_to_px(A4_CM[1]))  # 2480 x 3508
 
 
+@dataclass(frozen=True)
+class PaperSize:
+    """A printer sheet (portrait). Dye-sub event printers (e.g. Mitsubishi CP-D80DW) use 15x20 = 6x8"."""
+    key: str
+    width_cm: float
+    height_cm: float
+    inches: str = ""
+
+    @property
+    def label(self) -> str:
+        return f"{self.width_cm:g}x{self.height_cm:g}" + (f' ({self.inches}")' if self.inches else "")
+
+    @property
+    def size_px(self) -> tuple[int, int]:
+        return cm_to_px(self.width_cm), cm_to_px(self.height_cm)
+
+
+PAPER_SIZES: dict[str, PaperSize] = {
+    "15x20": PaperSize("15x20", 15.2, 20.3, "6x8"),
+    "10x15": PaperSize("10x15", 10.2, 15.2, "4x6"),
+    "13x18": PaperSize("13x18", 12.7, 17.8, "5x7"),
+    "20x25": PaperSize("20x25", 20.3, 25.4, "8x10"),
+    "A4": PaperSize("A4", A4_CM[0], A4_CM[1]),
+}
+DEFAULT_PAPER = "15x20"
+
+
+def get_paper(key: str) -> PaperSize:
+    try:
+        return PAPER_SIZES[key]
+    except KeyError:
+        raise ValueError(f"Unknown paper size: {key!r}. Options: {list(PAPER_SIZES)}")
+
+
+def mm_to_px(mm: float, dpi: int = DPI) -> int:
+    return cm_to_px(mm / 10, dpi)
+
+
 def get_size(key: str) -> MagnetSize:
     try:
         return MAGNET_SIZES[key]
