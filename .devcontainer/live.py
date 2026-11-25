@@ -93,8 +93,9 @@ def start_screen(size: str, vnc_port: int, web_port: int) -> list[subprocess.Pop
         return subprocess.Popen(cmd, env=env, stdout=out, stderr=subprocess.STDOUT, start_new_session=True)
 
     # leftovers of a previous run (killed preview, container restart) would block the display/ports
-    for pattern in (f"Xvfb {DISPLAY}", f"x11vnc -display {DISPLAY}", f"websockify --web {NOVNC}", "openbox"):
+    for pattern in (f"^Xvfb {DISPLAY} ", f"^x11vnc -display {DISPLAY} ", f"-m websockify --web {NOVNC} "):
         subprocess.run(["pkill", "-f", pattern], capture_output=True)
+    subprocess.run(["pkill", "-x", "openbox"], capture_output=True)        # exact process name only
     time.sleep(0.5)
     Path(f"/tmp/.X{DISPLAY[1:]}-lock").unlink(missing_ok=True)
     Path(f"/tmp/.X11-unix/X{DISPLAY[1:]}").unlink(missing_ok=True)
