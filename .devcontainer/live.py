@@ -87,20 +87,30 @@ def start_app() -> subprocess.Popen:
 
 def start_screen(size: str, vnc_port: int, web_port: int) -> list[subprocess.Popen]:
     """Xvfb + window manager + x11vnc + websockify/noVNC. They keep running across app restarts,
-    so the browser tab stays connected while the app reloads."""
-    quiet = {"stdout": subprocess.DEVNULL, "stderr": subprocess.STDOUT}
-    procs = [subprocess.Popen(["Xvfb", DISPLAY, "-screen", "0", f"{size}x24", "-nolisten", "tcp"], **quiet)]
-    for _ in range(50):                                   # wait for the X socket
-        if Path(f"/tmp/.X11-unix/X{DISPLAY[1:]}").exists():
+    so the browser tab stays connected while the app reloads. Each writes /tmp/magnetstudio-<name>.log."""
+    def run(name: str, cmd: list[str], env=None) -> subprocess.Popen:
+        out = open(f"/tmp/magnetstudio-{name}.log", "w")
+        return subprocess.Popen(cmd, env=env, stdout=out, stderr=subprocess.STDOUT, start_new_session=True)
+
+    procs = [run("xvfb", ["Xvfb", DISPLAY, "-screen", "0", f"{size}x24", "-nolisten", "tcp"])]
+    sock = Path(f"/tmp/.X11-unix/X{DISPLAY[1:]}")
+    for _ in range(100):                                  # wait up to 10 s for the X socket
+        if sock.exists() or procs[0].poll() is not None:
             break
         time.sleep(0.1)
+    if not sock.exists():
+        log(f"Xvfb did not start (exit {procs[0].poll()}): " + Path("/tmp/magnetstudio-xvfb.log").read_text()[-800:])
     env = dict(os.environ, DISPLAY=DISPLAY)
-    procs.append(subprocess.Popen(["openbox"], env=env, **quiet))
-    procs.append(subprocess.Popen(
-        ["x11vnc", "-display", DISPLAY, "-rfbport", str(vnc_port), "-localhost", "-forever", "-shared",
-         "-nopw", "-quiet", "-xkb", "-add_keysyms", "-noxrecord", "-noxdamage"], **quiet))
-    procs.append(subprocess.Popen([sys.executable, "-m", "websockify", "--web", str(NOVNC), str(web_port),
-                                   f"localhost:{vnc_port}"], **quiet))
+    procs.append(run("openbox", ["openbox"], env))
+    procs.append(run("x11vnc", ["x11vnc", "-display", DISPLAY, "-rfbport", str(vnc_port), "-localhost", "-forever",
+                                "-shared", "-nopw", "-xkb", "-add_keysyms", "-noxrecord", "-noxdamage"]))
+    procs.append(run("websockify", [sys.executable, "-m", "websockify", "--web", str(NOVNC), str(web_port),
+                                    f"localhost:{vnc_port}"]))
+    time.sleep(1.5)
+    for name, p in zip(("xvfb", "openbox", "x11vnc", "websockify"), procs):
+        if p.poll() is not None:
+            log(f"{name} exited (code {p.returncode}): "
+                + Path(f"/tmp/magnetstudio-{name}.log").read_text(errors="replace")[-600:])
     return procs
 
 

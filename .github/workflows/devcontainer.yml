@@ -22,6 +22,8 @@ jobs:
             bash .devcontainer/start.sh
             sleep 25
             cat /tmp/magnetstudio-live.log
+            for f in xvfb openbox x11vnc websockify; do echo "== $f"; tail -15 /tmp/magnetstudio-$f.log; done
+            id; ls -ld /tmp/.X11-unix; ls /tmp/.X11-unix
             curl -sf -o /dev/null -w "6080 / → %{http_code}\n" http://localhost:6080/
             curl -sf -o /dev/null -w "6080 vnc.html → %{http_code}\n" http://localhost:6080/vnc.html
             python - <<'PY'
