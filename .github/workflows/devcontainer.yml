@@ -35,4 +35,4 @@ jobs:
             PY
             pgrep -a Xvfb && pgrep -a x11vnc
             pgrep -af "python -m magnetstudio"
-            ! grep -q "App exited" /tmp/magnetstudio-live.log || { tail -50 ~/.magnetstudio-live/logs/magnetstudio.log; exit 1; }
+            ! grep -qE "exited \(code|did not start" /tmp/magnetstudio-live.log || { tail -50 ~/.magnetstudio-live/logs/magnetstudio.log; exit 1; }

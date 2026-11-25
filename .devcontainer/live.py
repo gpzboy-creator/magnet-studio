@@ -92,6 +92,13 @@ def start_screen(size: str, vnc_port: int, web_port: int) -> list[subprocess.Pop
         out = open(f"/tmp/magnetstudio-{name}.log", "w")
         return subprocess.Popen(cmd, env=env, stdout=out, stderr=subprocess.STDOUT, start_new_session=True)
 
+    # leftovers of a previous run (killed preview, container restart) would block the display/ports
+    for pattern in (f"Xvfb {DISPLAY}", f"x11vnc -display {DISPLAY}", f"websockify --web {NOVNC}", "openbox"):
+        subprocess.run(["pkill", "-f", pattern], capture_output=True)
+    time.sleep(0.5)
+    Path(f"/tmp/.X{DISPLAY[1:]}-lock").unlink(missing_ok=True)
+    Path(f"/tmp/.X11-unix/X{DISPLAY[1:]}").unlink(missing_ok=True)
+
     procs = [run("xvfb", ["Xvfb", DISPLAY, "-screen", "0", f"{size}x24", "-nolisten", "tcp"])]
     sock = Path(f"/tmp/.X11-unix/X{DISPLAY[1:]}")
     for _ in range(100):                                  # wait up to 10 s for the X socket

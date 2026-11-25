@@ -6,7 +6,11 @@ if [ ! -f "$HOME/.magnetstudio-setup-done" ]; then
     echo "Setup is not complete – running it now (a few minutes)..."
     bash .devcontainer/setup.sh > /tmp/magnetstudio-setup.log 2>&1 || { echo "Setup failed – see /tmp/magnetstudio-setup.log"; tail -20 /tmp/magnetstudio-setup.log; }
 fi
-pkill -f ".devcontainer/live.py" 2>/dev/null; rm -f /tmp/magnetstudio-live.pid
+# stop a running preview and wait until it has shut its screen down
+if pkill -f ".devcontainer/live.py" 2>/dev/null; then
+    for _ in $(seq 1 60); do pgrep -f ".devcontainer/live.py" >/dev/null || break; sleep 0.25; done
+fi
+rm -f /tmp/magnetstudio-live.pid
 # Xvfb wants a root-owned, sticky /tmp/.X11-unix (missing after a container restart)
 sudo mkdir -p /tmp/.X11-unix 2>/dev/null && sudo chown root:root /tmp/.X11-unix && sudo chmod 1777 /tmp/.X11-unix
 setsid nohup python .devcontainer/live.py > /tmp/magnetstudio-live.log 2>&1 < /dev/null &
