@@ -1,0 +1,35 @@
+# Builds the Codespaces dev container exactly as Codespaces does (postCreate = setup.sh), then starts
+# the live preview inside it and checks that the browser view (6080) and the VNC screen (5900) answer.
+name: Live preview (Codespaces) check
+
+on:
+  push:
+    branches: [main]
+    paths: [".devcontainer/**", "pyproject.toml", ".github/workflows/devcontainer.yml"]
+  workflow_dispatch:
+
+jobs:
+  devcontainer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: devcontainers/ci@v0.3
+        with:
+          push: never
+          runCmd: |
+            set -x
+            bash .devcontainer/start.sh
+            sleep 25
+            cat /tmp/magnetstudio-live.log
+            curl -sf -o /dev/null -w "6080 / → %{http_code}\n" http://localhost:6080/
+            curl -sf -o /dev/null -w "6080 vnc.html → %{http_code}\n" http://localhost:6080/vnc.html
+            python - <<'PY'
+            import socket
+            s = socket.create_connection(("localhost", 5900), timeout=5)
+            banner = s.recv(12)
+            print("VNC banner:", banner)
+            assert banner.startswith(b"RFB"), banner
+            PY
+            grep -q "QVncServer created" /tmp/magnetstudio-live.log
+            pgrep -af "python -m magnetstudio"
