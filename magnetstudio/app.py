@@ -13,8 +13,7 @@ from magnetstudio.core.applog import install_exception_hooks, log_startup_banner
 from magnetstudio.core.migrate import migrate_legacy
 from magnetstudio.core.secrets import migrate_plaintext_key
 from magnetstudio.core.settings import load_settings, save_settings, settings_path
-from magnetstudio.ui.theme import apply_theme
-from magnetstudio.ui.main_window import MainWindow
+from magnetstudio.ui import theme
 
 log = logging.getLogger("magnetstudio")
 
@@ -95,9 +94,13 @@ def main() -> int:
     app.setApplicationName("MagnetStudio")
     _install_signal_handlers(app)
     _setup_fonts(app)
-    apply_theme(app)  # after fonts, so the UI font (Heebo) is available
-    log.info("Settings: %s | data: %s", settings_path(), paths.data_dir())
-    window = MainWindow(_prepare_user_data())
+    settings = _prepare_user_data()
+    # palette first: some widgets read the colours when they are imported / built
+    mode = theme.set_mode(settings.get("theme_mode", "auto"), app)
+    theme.apply_theme(app)  # after fonts, so the UI font (Heebo) is available
+    log.info("Settings: %s | data: %s | theme: %s", settings_path(), paths.data_dir(), mode)
+    from magnetstudio.ui.main_window import MainWindow
+    window = MainWindow(settings)
     if os.environ.get("MAGNETSTUDIO_START_MAXIMIZED"):   # live preview in the browser (.devcontainer)
         window.showMaximized()
     else:

@@ -111,6 +111,20 @@ class PrintQueueController(QObject):
     def find_by_path(self, path: str) -> QueueItem | None:
         return next((i for i in self.items.values() if i.path == str(path)), None)
 
+    def items_of(self, job: PrintJob | None) -> list[QueueItem]:
+        """Cards a job belongs to. A batch job (print all / a full sheet) has tag "id1,id2,…"."""
+        if job is None or not job.tag:
+            return []
+        return [i for i in (self.items.get(t) for t in job.tag.split(",")) if i is not None]
+
+    @staticmethod
+    def _copies_in(job: PrintJob, item: QueueItem) -> int:
+        ids = job.tag.split(",")
+        if job.photo_copies and item.id in ids:
+            idx = ids.index(item.id)
+            return int(job.photo_copies[idx]) if idx < len(job.photo_copies) else 0
+        return job.magnet_count() if len(ids) == 1 else max(1, job.copies)
+
     def _set_stage(self, item: QueueItem, stage: Stage, error: str = "") -> None:
         item.stage, item.error = stage, error
         self.item_changed.emit(item.id)
@@ -139,11 +153,11 @@ class PrintQueueController(QObject):
 
     def submit(self, job: PrintJob) -> bool:
         """Queue a job; jobs run one at a time in a worker thread."""
-        item = self.get(job.tag)
+        items = self.items_of(job)
         if not self._printer_check(job.printer_name):
             msg = f"המדפסת '{job.printer_name}' לא זמינה"
             log.error("Printer unavailable: %r (job %s)", job.printer_name, job.tag or "-")
-            if item:
+            for item in items:
                 self._set_stage(item, Stage.FAILED, "המדפסת לא זמינה")
             self.job_failed.emit(msg)
             self.printer_unavailable.emit(job.printer_name)
@@ -151,7 +165,7 @@ class PrintQueueController(QObject):
         self.jobs.append(job)
         log.info("Queued [%s] %s ×%d (%d waiting)", job.tag or "-",
                  ", ".join(Path(p).name for p in job.photo_paths), job.copies, len(self.jobs))
-        if item:
+        for item in items:
             item.jobs_open += 1
             # waiting behind another job → QUEUED; printer idle → the worker sets the next stage
             # right away (no QUEUED flash on the card)
@@ -179,8 +193,7 @@ class PrintQueueController(QObject):
         w.finished.connect(self._start_next)
         was_idle = self.worker is None
         self.worker, self.active_job = w, job
-        item = self.get(job.tag)
-        if item:
+        for item in self.items_of(job):
             self._set_stage(item, Stage.ENHANCING if job.photo_filter else Stage.COMPOSING)
         if was_idle:
             self.busy_changed.emit(True)
@@ -188,21 +201,18 @@ class PrintQueueController(QObject):
 
     def _on_progress(self, done: int, total: int) -> None:
         self.progress.emit(done, total)
-        item = self.get(self.active_job.tag if self.active_job else None)
-        if item:
+        for item in self.items_of(self.active_job):
             self._set_stage(item, Stage.COMPOSING if done == 0 else Stage.SPOOLING)
 
     def _finish_item(self, ok: bool, error: str = "") -> None:
         job = self.active_job
-        item = self.get(job.tag if job else None)
-        if item is None:
-            return
-        item.jobs_open = max(0, item.jobs_open - 1)
-        if ok:
-            item.copies_printed += job.magnet_count()
-            self._set_stage(item, Stage.QUEUED if item.jobs_open else Stage.PRINTED)
-        else:
-            self._set_stage(item, Stage.FAILED, error)
+        for item in self.items_of(job):
+            item.jobs_open = max(0, item.jobs_open - 1)
+            if ok:
+                item.copies_printed += self._copies_in(job, item)
+                self._set_stage(item, Stage.QUEUED if item.jobs_open else Stage.PRINTED)
+            else:
+                self._set_stage(item, Stage.FAILED, error)
 
     def _on_succeeded(self, msg: str) -> None:
         n = self.active_job.magnet_count() if self.active_job else 0

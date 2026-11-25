@@ -1,5 +1,5 @@
 """Settings dialog: enhancer preset and optional Gemini cloud styles."""
-from PyQt6.QtWidgets import (QComboBox, QDialog, QDialogButtonBox, QFormLayout, QLabel,
+from PyQt6.QtWidgets import (QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QFormLayout, QLabel,
                              QLineEdit, QPushButton)
 
 from magnetstudio import paths
@@ -15,6 +15,20 @@ class SettingsDialog(QDialog):
         self.setWindowTitle("הגדרות")
         self.settings = settings
         form = QFormLayout(self)
+
+        self.theme_mode = QComboBox()
+        for key, label in (("auto", "אוטומטי – לפי Windows / Mac"), ("light", "בהיר"), ("dark", "כהה")):
+            self.theme_mode.addItem(label, key)
+        self.theme_mode.setCurrentIndex(max(0, self.theme_mode.findData(settings.get("theme_mode", "auto"))))
+        self.theme_mode.setToolTip("נכנס לתוקף בהפעלה הבאה של התוכנה")
+        form.addRow("מצב תצוגה", self.theme_mode)
+
+        self.cost = QDoubleSpinBox()
+        self.cost.setRange(0, 1000)
+        self.cost.setDecimals(2)
+        self.cost.setSuffix(" ₪")
+        self.cost.setValue(float(settings.get("cost_per_sheet") or 0))
+        form.addRow("עלות לדף", self.cost)
 
         self.preset = QComboBox()
         for key, label in PRESET_LABELS.items():
@@ -75,7 +89,8 @@ class SettingsDialog(QDialog):
         cls._open_dir(paths.log_dir())
 
     def _save(self):
-        self.settings.update(photographer_credit=self.credit.text().strip(),
+        self.settings.update(theme_mode=self.theme_mode.currentData(), cost_per_sheet=self.cost.value(),
+                             photographer_credit=self.credit.text().strip(),
                              enhance_preset=self.preset.currentData(),
                              cloud_style=self.cloud.currentData(),
                              gemini_model=self.model.text().strip() or DEFAULT_GEMINI_MODEL)

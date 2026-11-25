@@ -18,6 +18,8 @@
   | 15x20 | 1772 x 2362 |
   | 5x15 סטריפ | 591 x 1772 |
 - **מצבי הדפסה:**
+  0. **דף מגנטים (ברירת מחדל)** – דף 15x20 (6x8", Mitsubishi CP-D80DW) בשורות × עמודות (7.5x10 → 2×2),
+     שוליים במ"מ, סימוני חיתוך; תמונות לאורך ולרוחב באותו דף. `core/layout.py › build_grid_sheets`.
   1. **מדפסת טרמית** – תמונה אחת לכל הדפסה, בגודל המגנט המדויק.
   2. **פריסת A4** – כמה מגנטים על A4 (2480x3508 ב-300 DPI) עם קווי חיתוך.
      - **Auto-Orientation:** `core/layout.py` בודק כיוון מקורי מול סיבוב 90° ובוחר את המקסימום
@@ -68,12 +70,14 @@ magnetstudio/
   services/             Qt בלי widgets
     print_queue.py      PrintQueueController + Stage + QueueItem – כל מצב התור
     printer.py          זיהוי מדפסות, PrintWorker (QThread), QPainter→QPrinter, Dry Run ל-PDF
+    thumbnails.py       רינדור תמונות ממוזערות ברקע (generation, נסגר כשאין עבודה)
     enhancement_worker.py, generator_worker.py, fonts_qt.py
   ui/                   PyQt6 widgets בלבד
-    main_window.py      חלון ראשי – מציג את מצב הבקר, בונה PrintJob לפי הבחירות (job_factory)
-    theme.py            עיצוב כהה: ThemeColors, QSS, RTL גלובלי
+    main_window.py      חלון ראשי בסגנון MagnetOti: רשת תמונות + פאנל הדפסה + תור חי; בונה PrintJob (job_factory)
+    theme.py            ערכות בהירה/כהה (set_mode: auto/light/dark), ThemeColors, QSS, RTL גלובלי
     widgets.py          ltr(), make_thumb()
-    components/queue_panel.py  QueuePanel + QueueCardWidget (88px) + ReprintGuard
+    components/photo_grid.py   PhotoGrid + PhotoCard (מגנט מוגמר, ☆, תג, − n +)
+    components/queue_panel.py  QueuePanel (התור החי, "⚡ תור חי") + QueueCardWidget + ReprintGuard
     designer.py, frame_generator_dialog.py, settings_dialog.py, toast.py
   assets/               לקריאה בלבד: fonts/, templates/ (sample_*), ui/ (SVG)
 tests/                  pytest; conftest מבודד (תיקיית בית זמנית + keyring בזיכרון)
@@ -103,6 +107,8 @@ tests/                  pytest; conftest מבודד (תיקיית בית זמנ�
   רישום ל-Qt: `services/fonts_qt.register_qt_fonts()`.
 - `render_text_layer` מרפד לפי גבולות הדיו האמיתיים ומחזיר `info["offset"]`; מי שממקם טקסט חייב
   להוסיף את ה-offset.
+- **מראה:** MagnetOti הוא הרפרנס (docs/REFERENCE-MAGNETOTI.md). ערכה בהירה כברירת מחדל; `theme.set_mode` רץ
+  לפני ייבוא/בניית widgets (חלק מהרכיבים קוראים צבעים בזמן import).
 - UI: צבעים רק מ-`ThemeColors` (ui/theme.py). סגנון לפי property `class` או objectName;
   אחרי שינוי property → `theme.repolish`. חיצים: SVG ב-`assets/ui/`.
 - RTL: `apply_theme` קובע `app.setLayoutDirection(RightToLeft)`. רצף LTR בתוך עברית ("+1", "×3")
@@ -155,7 +161,11 @@ python packaging/build.py                               # → dist/MagnetStudio/
 **לא נבדק במציאות:** מדפסת טרמית אמיתית (גודל נייר מותאם בדרייבר) · Gemini חי (שמות מודלים) ·
 הרצה ובנייה על Windows/Mac (נבנה ונבדק רק על Linux) · מיגרציה מהתקנה ישנה אמיתית של שחר.
 
+**מסך ראשי חדש (25.11):** בסגנון MagnetOti – רשת כרטיסים עם עותקים לכל תמונה, הדפסת דפי 15x20 (2×2), זוג מסגרות PNG,
+מחוונים, מוני דפים/עלות, בהיר/כהה/אוטומטי, תור חי כפאנל אופציונלי. 38 בדיקות עוברות.
+
 **הבא בתור (הצעות):**
+0. שחר: לבדוק את המסך החדש בתצוגה החיה / במפעיל, ולהגיד מה לשנות. אחר כך: הדפסה אמיתית ב-CP-D80DW.
 1. **ניקוד עברי נחתך ב-Windows** (נמצא ב-CI: 0.2–1% דיו + יישור לימין) – לבדוק libraqm/python-bidi ב-Windows ולתקן.
    + לתקן את `test_fonts` (גופן "תורם" לפי מערכת הפעלה; לא לפתוח דיאלוג) ואת סף הזמן ב-`test_ai_enhancer`.
 2. לפתוח את התצוגה החיה ב-Codespaces בפעם הראשונה ולוודא שעולה (setup.sh לא נבדק ב-Codespaces אמיתי; הקלדה בעברית ב-noVNC).

@@ -427,6 +427,17 @@ class QueuePanel(QWidget):
         self.cards_layout.insertWidget(0, card)
         return card
 
+    def remove_card(self, job_id: str) -> None:
+        """[MagnetStudio] photo removed from the grid → drop its card here too."""
+        card = self._cards.pop(job_id, None)
+        if card is None:
+            return
+        self._order.remove(job_id)
+        self.cards_layout.removeWidget(card)
+        card.deleteLater()
+        if self.selected_id == job_id:
+            self.selected_id = None
+
     # ---------------------------------------------------- [MagnetStudio] keyboard + guard
     def _on_reprint_button(self, job_id: str) -> None:
         """Mouse / touch on Reprint is deliberate → print immediately, no confirmation."""

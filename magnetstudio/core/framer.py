@@ -56,6 +56,30 @@ def render_magnet(photo_paths: list[str | Path] | str | Path, size_key: str,
     return apply_frame(photo, frame)
 
 
+def render_magnet_preview(photo_path: str | Path, size_key: str, frame_path: str | Path | None = None,
+                          photo_filter: PhotoFilter | None = None, frame_landscape: str | Path | None = None,
+                          max_side: int = 420) -> Image.Image:
+    """A small finished-magnet image for the photo grid – same pipeline as printing, but the photo
+    is decoded at reduced size (JPEG draft mode), so 50+ thumbnails render in seconds."""
+    from PIL import ImageOps
+    with Image.open(photo_path) as im:
+        im.draft("RGB", (1400, 1400))           # JPEG: decode at 1/2, 1/4 … – much faster
+        photo = ImageOps.exif_transpose(im).convert("RGB")
+    if is_template(frame_path):
+        from magnetstudio.core.templates import compose_auto, load_frame
+        out = compose_auto(load_frame(frame_path), [photo], photo_filter=photo_filter)
+    else:
+        photo = fit_to_size(photo, get_size(size_key))
+        if photo_filter:
+            photo = photo_filter(photo)
+        frame = frame_path
+        if frame_landscape and (photo.width > photo.height or not frame_path):
+            frame = frame_landscape
+        out = apply_frame(photo, frame)
+    out.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
+    return out
+
+
 def adjust(img: Image.Image, exposure: float = 0, contrast: float = 0, sharpness: float = 0) -> Image.Image:
     """Global sliders (−100…100): exposure (brightness), contrast, sharpness. 0 = unchanged."""
     from PIL import ImageEnhance

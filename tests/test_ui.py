@@ -130,6 +130,7 @@ def _run() -> int:
     check(qp.cards[bad_item.id].status == QueueItemStatus.FAILED, f"broken file → FAILED ({bad_item.error})")
 
     print("5) Hot Folder end-to-end")
+    win.fill_sheet.setChecked(False)          # print each Hot Folder photo at once
     win.auto_print.setChecked(True)
     before = len(win.items)
     Image.open(photos[1]).save(tmp / "hot" / "IMG_hot.jpg")

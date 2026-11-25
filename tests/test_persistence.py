@@ -119,7 +119,7 @@ def _run() -> int:
     check(wait_until(lambda: item.stage == Stage.PRINTED), "print 1 done")
     disk = load_settings()  # what a fresh start after a crash would see
     check(disk["print_count_total"] == 501, f"counter on disk right after the print: {disk['print_count_total']}")
-    check(disk["magnet_size"] == "10x10" and disk["thermal_printer"] == DRY_RUN_PRINTER,
+    check(disk["magnet_size"] == "10x10" and disk[win._printer_key()] == DRY_RUN_PRINTER,
           "current size + printer saved too")
     win.copies_box.setValue(3)
     win._print_item(item.id)
@@ -164,6 +164,7 @@ def _run() -> int:
     win.settings["frame"] = None
     (HOME / "hot").mkdir()
     win.settings["watch_folder"] = str(HOME / "hot")
+    win.fill_sheet.setChecked(False)          # print each Hot Folder photo at once
     win.auto_print.setChecked(True)
     Image.open(photos[1]).save(HOME / "hot" / "IMG_hot.jpg")
     wait_until(lambda: any(i.source == "hot" and i.stage == Stage.PRINTED for i in win.items.values()), 30)
