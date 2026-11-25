@@ -1,6 +1,9 @@
-"""Live preview: MagnetStudio on a VNC screen, shown in the browser through noVNC.
+"""Live preview: MagnetStudio on a virtual screen, shown in the browser through noVNC.
 
-    browser ──https──► :6080 websockify + noVNC ──► :5900 Qt "vnc" platform ◄── MagnetStudio
+    browser ──https──► :6080 websockify + noVNC ──► :5900 x11vnc ──► Xvfb :99 (+ openbox) ◄── MagnetStudio
+
+(Qt's built-in "vnc" platform was tried first: it sends pixels in the wrong byte order – colours come
+out swapped in noVNC – and has weak keyboard support, so a real X server + x11vnc is used.)
 
 - Restarts the app when its code changes (magnetstudio/**) and whenever it exits/crashes.
 - Every PULL_EVERY seconds: `git pull --ff-only` – changes pushed to GitHub show up by themselves.
@@ -27,6 +30,7 @@ PIDFILE = Path("/tmp/magnetstudio-live.pid")
 WATCH = [ROOT / "magnetstudio"]
 WATCH_EXT = {".py", ".json", ".ttf", ".otf", ".svg", ".png"}
 PULL_EVERY = 20
+DISPLAY = ":99"
 
 
 def log(msg: str) -> None:
@@ -60,17 +64,44 @@ def pull() -> bool:
     if before == after:
         return False
     log(f"Pulled {before[:7]} → {after[:7]}: " + git("log", "-1", "--format=%s").stdout.strip())
-    if git("diff", "--name-only", before, after, "--", "pyproject.toml").stdout.strip():
-        log("Dependencies changed – reinstalling")
-        subprocess.run([sys.executable, "-m", "pip", "install", "-q", "-e", f"{ROOT}[ai]"])
+    changed = git("diff", "--name-only", before, after).stdout.split()
+    if ".devcontainer/setup.sh" in changed or "pyproject.toml" in changed:
+        log("Setup / dependencies changed – re-running setup")
+        subprocess.run(["bash", str(ROOT / ".devcontainer" / "setup.sh")])
+    if any(c.startswith(".devcontainer/") for c in changed):
+        raise RestartSelf()                # the preview itself changed – start.sh restarts it
     return True
 
 
-def start_app(size: str, vnc_port: int) -> subprocess.Popen:
-    env = dict(os.environ, QT_QPA_PLATFORM=f"vnc:size={size}:port={vnc_port}", MAGNETSTUDIO_HOME=str(HOME))
+class RestartSelf(Exception):
+    pass
+
+
+def start_app() -> subprocess.Popen:
+    env = dict(os.environ, DISPLAY=DISPLAY, QT_QPA_PLATFORM="xcb", MAGNETSTUDIO_HOME=str(HOME),
+               MAGNETSTUDIO_START_MAXIMIZED="1")
     env.pop("MAGNETSTUDIO_EXIT_AFTER_MS", None)
     log(f"Starting MagnetStudio ({git('log', '-1', '--format=%h %s').stdout.strip()})")
     return subprocess.Popen([sys.executable, "-m", "magnetstudio"], cwd=ROOT, env=env)
+
+
+def start_screen(size: str, vnc_port: int, web_port: int) -> list[subprocess.Popen]:
+    """Xvfb + window manager + x11vnc + websockify/noVNC. They keep running across app restarts,
+    so the browser tab stays connected while the app reloads."""
+    quiet = {"stdout": subprocess.DEVNULL, "stderr": subprocess.STDOUT}
+    procs = [subprocess.Popen(["Xvfb", DISPLAY, "-screen", "0", f"{size}x24", "-nolisten", "tcp"], **quiet)]
+    for _ in range(50):                                   # wait for the X socket
+        if Path(f"/tmp/.X11-unix/X{DISPLAY[1:]}").exists():
+            break
+        time.sleep(0.1)
+    env = dict(os.environ, DISPLAY=DISPLAY)
+    procs.append(subprocess.Popen(["openbox"], env=env, **quiet))
+    procs.append(subprocess.Popen(
+        ["x11vnc", "-display", DISPLAY, "-rfbport", str(vnc_port), "-localhost", "-forever", "-shared",
+         "-nopw", "-quiet", "-xkb", "-add_keysyms", "-noxrecord", "-noxdamage"], **quiet))
+    procs.append(subprocess.Popen([sys.executable, "-m", "websockify", "--web", str(NOVNC), str(web_port),
+                                   f"localhost:{vnc_port}"], **quiet))
+    return procs
 
 
 def stop_app(proc: subprocess.Popen) -> None:
@@ -85,7 +116,7 @@ def stop_app(proc: subprocess.Popen) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--size", default="1440x900")
+    ap.add_argument("--size", default="1600x900")
     ap.add_argument("--vnc-port", type=int, default=5900)
     ap.add_argument("--web-port", type=int, default=6080)
     ap.add_argument("--no-pull", action="store_true")
@@ -105,15 +136,19 @@ def main() -> int:
     (NOVNC / "index.html").write_text(
         '<!doctype html><meta http-equiv="refresh" content="0; url=vnc.html?autoconnect=true'
         '&reconnect=true&reconnect_delay=1500&resize=scale&show_dot=true&path=websockify">', encoding="utf-8")
-    web = subprocess.Popen([sys.executable, "-m", "websockify", "--web", str(NOVNC), str(a.web_port),
-                            f"localhost:{a.vnc_port}"], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-    log(f"Browser view on port {a.web_port}")
+    try:
+        import websockify  # noqa: F401
+        import PyQt6.QtWidgets  # noqa: F401
+    except ImportError as e:
+        log(f"Setup incomplete ({e}) – run: bash .devcontainer/setup.sh")
+    screen = start_screen(a.size, a.vnc_port, a.web_port)
+    log(f"Browser view on port {a.web_port} (screen {a.size})")
 
     stop = {"flag": False}
     for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, lambda *_: stop.__setitem__("flag", True))
 
-    app = start_app(a.size, a.vnc_port)
+    app = start_app()
     seen, last_pull = snapshot(), time.monotonic()
     try:
         while not stop["flag"]:
@@ -123,6 +158,8 @@ def main() -> int:
                 last_pull = time.monotonic()
                 try:
                     pull()
+                except RestartSelf:
+                    raise
                 except Exception as e:  # noqa: BLE001 – offline etc.
                     log(f"git pull skipped: {e}")
             now = snapshot()
@@ -137,12 +174,26 @@ def main() -> int:
                 restart = True
             if restart:
                 stop_app(app)
-                app = start_app(a.size, a.vnc_port)
+                app = start_app()
+    except RestartSelf:
+        log("Live preview updated – restarting it")
+        stop_all(app, screen)
+        os.execvp("bash", ["bash", str(ROOT / ".devcontainer" / "start.sh")])
     finally:
-        stop_app(app)
-        web.terminate()
-        PIDFILE.unlink(missing_ok=True)
+        stop_all(app, screen)
     return 0
+
+
+def stop_all(app: subprocess.Popen, screen: list[subprocess.Popen]) -> None:
+    stop_app(app)
+    for p in reversed(screen):
+        if p.poll() is None:
+            p.terminate()
+            try:
+                p.wait(5)
+            except subprocess.TimeoutExpired:
+                p.kill()
+    PIDFILE.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

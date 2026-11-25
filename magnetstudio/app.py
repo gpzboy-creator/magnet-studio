@@ -98,7 +98,10 @@ def main() -> int:
     apply_theme(app)  # after fonts, so the UI font (Heebo) is available
     log.info("Settings: %s | data: %s", settings_path(), paths.data_dir())
     window = MainWindow(_prepare_user_data())
-    window.show()
+    if os.environ.get("MAGNETSTUDIO_START_MAXIMIZED"):   # live preview in the browser (.devcontainer)
+        window.showMaximized()
+    else:
+        window.show()
     smoke_ms = os.environ.get("MAGNETSTUDIO_EXIT_AFTER_MS")  # CI smoke test of run.bat / run.sh
     if smoke_ms:
         log.info("Smoke test: closing after %s ms", smoke_ms)

@@ -8,4 +8,5 @@
 - **הדפסה:** אין כאן מדפסת – "שמירה לקובץ PDF (בדיקה)". הקבצים ב-`~/.magnetstudio-live/documents/output` (מקש ימני → Download).
 - **לוג:** `/tmp/magnetstudio-live.log` (ההפעלה) · `~/.magnetstudio-live/logs/magnetstudio.log` (התוכנה).
 - **הפעלה מחדש ידנית:** בטרמינל: `bash .devcontainer/start.sh`.
+- **מקלדת:** עברית עובדת – מחליפים שפה במחשב כרגיל (Alt+Shift) ומקלידים בתוך הלשונית.
 - הסביבה נעצרת לבד אחרי 30 דק' בלי שימוש; הקישור מחזיר אותה בדיוק למצב שהייתה.

@@ -31,5 +31,6 @@ jobs:
             print("VNC banner:", banner)
             assert banner.startswith(b"RFB"), banner
             PY
-            grep -q "QVncServer created" /tmp/magnetstudio-live.log
+            pgrep -a Xvfb && pgrep -a x11vnc
             pgrep -af "python -m magnetstudio"
+            ! grep -q "App exited" /tmp/magnetstudio-live.log || { tail -50 ~/.magnetstudio-live/logs/magnetstudio.log; exit 1; }

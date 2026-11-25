@@ -147,7 +147,8 @@ python packaging/build.py                               # → dist/MagnetStudio/
 26 בדיקות עוברות (Linux). הקוד בריפו הפרטי `gpzboy-creator/magnet-studio` (ענף `main`).
 **הורדה (נבנית אוטומטית בכל push):** https://github.com/gpzboy-creator/magnet-studio/releases/tag/latest
 **תצוגה חיה בדפדפן (בדיקת כל שינוי, בלי התקנה):** https://codespaces.new/gpzboy-creator/magnet-studio?quickstart=1
-  (`.devcontainer/` – Qt VNC + noVNC, `live.py` מושך מ-GitHub כל 20 ש' ומפעיל מחדש)
+  (`.devcontainer/` – Xvfb + openbox + x11vnc + noVNC; `live.py` מושך מ-GitHub כל 20 ש' ומפעיל מחדש;
+  לא להשתמש ב-QT_QPA_PLATFORM=vnc – צבעים הפוכים ומקלדת חלשה)
 **מפעיל שמתעדכן לבד:** `launcher/MagnetStudio.bat` / `.command` – בודק עדכון, מוריד, מפעיל; מפתח GitHub לקריאה בלבד.
 **הרצה מהריפו:** `run.bat` / `run.command` / `run.sh` (נבדק ב-Linux, וב-CI על Windows/Mac – עם Python ועם uv).
 
