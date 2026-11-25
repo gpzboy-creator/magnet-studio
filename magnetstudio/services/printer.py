@@ -54,6 +54,25 @@ def is_printer_available(printer_name: str) -> bool:
     return not QPrinterInfo.printerInfo(printer_name).isNull()
 
 
+def media_size_mm(printer_name: str | None, nominal_mm: tuple[float, float], tolerance_mm: float = 12.0):
+    """The printer driver's paper size that matches `nominal_mm` (e.g. Mitsubishi CP-D80DW "6x8" is
+    158×206 mm, not 152×203). Returns (w, h) in mm, portrait, or None (PDF / no match)."""
+    if is_dry_run(printer_name):
+        return None
+    info = QPrinterInfo.printerInfo(printer_name)
+    if info.isNull():
+        return None
+    want = sorted(nominal_mm)
+    best, best_d = None, tolerance_mm * 2
+    for ps in info.supportedPageSizes():
+        sz = ps.size(QPageSize.Unit.Millimeter)
+        dims = sorted((sz.width(), sz.height()))
+        d = abs(dims[0] - want[0]) + abs(dims[1] - want[1])
+        if all(abs(a - b) <= tolerance_mm for a, b in zip(dims, want)) and d < best_d:
+            best, best_d = (round(dims[0], 1), round(dims[1], 1)), d
+    return best
+
+
 # ---------------------------------------------------------------- pages
 
 def _pil_to_qimage(img: Image.Image) -> QImage:
@@ -63,10 +82,26 @@ def _pil_to_qimage(img: Image.Image) -> QImage:
     return QImage(data, rgb.width, rgb.height, 3 * rgb.width, QImage.Format.Format_RGB888).copy()
 
 
-def _page_layout_for(img: Image.Image, mode: PrintMode) -> QPageLayout:
+def _driver_page_size(printer_name: str | None, w_mm: float, h_mm: float) -> QPageSize | None:
+    """The driver's own QPageSize for this sheet (so a dye-sub printer gets its real 6x8 media)."""
+    if is_dry_run(printer_name):
+        return None
+    info = QPrinterInfo.printerInfo(printer_name)
+    want = sorted((w_mm, h_mm))
+    for ps in ([] if info.isNull() else info.supportedPageSizes()):
+        sz = ps.size(QPageSize.Unit.Millimeter)
+        if all(abs(a - b) <= 2.0 for a, b in zip(sorted((sz.width(), sz.height())), want)):
+            return ps
+    return None
+
+
+def _page_layout_for(img: Image.Image, mode: PrintMode, printer_name: str | None = None) -> QPageLayout:
     if mode == PrintMode.A4:
         size = QPageSize(QPageSize.PageSizeId.A4)
         orientation = QPageLayout.Orientation.Portrait
+    elif mode == PrintMode.SHEET and (driver := _driver_page_size(
+            printer_name, px_to_cm(img.width) * 10, px_to_cm(img.height) * 10)) is not None:
+        size, orientation = driver, QPageLayout.Orientation.Portrait
     else:
         w_mm, h_mm = px_to_cm(img.width) * 10, px_to_cm(img.height) * 10
         short, long_ = sorted((w_mm, h_mm))
@@ -106,7 +141,7 @@ def print_pages(pages: list[Image.Image], mode: PrintMode, printer_name: str | N
     if pdf:
         pdf.parent.mkdir(parents=True, exist_ok=True)
     printer = _make_printer(printer_name, pdf, job_name)
-    printer.setPageLayout(_page_layout_for(pages[0], mode))
+    printer.setPageLayout(_page_layout_for(pages[0], mode, None if pdf else printer_name))
 
     painter = QPainter()
     if not painter.begin(printer):
@@ -175,7 +210,8 @@ class PrintWorker(QThread):
             if not is_printer_available(job.printer_name):
                 raise PrintError(f"המדפסת '{job.printer_name}' לא זמינה")
             self.status.emit("מכין עמודים…")
-            pages = build_pages(job.render_images(), job.mode, **job.layout_opts)
+            pages = (job.render_images() if job.pages_ready
+                     else build_pages(job.render_images(), job.mode, **job.layout_opts))
             self.progress.emit(0, len(pages))
 
             pdf = None

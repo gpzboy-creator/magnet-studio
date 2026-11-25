@@ -139,13 +139,23 @@ class SheetSpec:
     gap_mm: float = 0.0
     crop_marks: bool = False
     mark_width: str = "medium"
+    paper_mm: tuple[float, float] | None = None   # the printer's real media (e.g. 158×206 for 6x8) overrides `paper`
 
     @classmethod
     def from_opts(cls, opts: dict) -> "SheetSpec":
         known = {k: v for k, v in (opts or {}).items() if k in cls.__dataclass_fields__}
         if "margins_mm" in known:
             known["margins_mm"] = tuple(float(m) for m in known["margins_mm"])
+        if known.get("paper_mm"):
+            known["paper_mm"] = tuple(float(m) for m in known["paper_mm"])
         return cls(**known)
+
+    @property
+    def paper_px(self) -> tuple[int, int]:
+        if self.paper_mm:
+            w, h = sorted(self.paper_mm)                 # sheets are laid out portrait
+            return mm_to_px(w), mm_to_px(h)
+        return get_paper(self.paper).size_px
 
     @property
     def per_sheet(self) -> int:
@@ -154,7 +164,7 @@ class SheetSpec:
 
 def sheet_cells(spec: SheetSpec) -> list[tuple[int, int, int, int]]:
     """Cell rectangles (x, y, w, h) in px, row by row, right-to-left order is the caller's business."""
-    pw, ph = get_paper(spec.paper).size_px
+    pw, ph = spec.paper_px
     top, bottom, right, left = (mm_to_px(m) for m in spec.margins_mm)
     gap = mm_to_px(spec.gap_mm)
     rows, cols = max(1, spec.rows), max(1, spec.cols)
@@ -196,7 +206,7 @@ def build_grid_sheets(images: list[Image.Image], spec: SheetSpec | None = None, 
     if not images:
         return []
     cells = sheet_cells(spec)
-    paper_px = get_paper(spec.paper).size_px
+    paper_px = spec.paper_px
     sheets = []
     for start in range(0, len(images), len(cells)):
         page = Image.new("RGB", paper_px, "white")

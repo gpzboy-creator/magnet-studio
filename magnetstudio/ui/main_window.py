@@ -18,7 +18,7 @@ from pathlib import Path
 from PIL.ImageQt import ImageQt
 from PyQt6.QtCore import QEvent, QObject, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QAction, QPixmap
-from PyQt6.QtWidgets import (QAbstractSpinBox, QApplication, QCheckBox, QComboBox, QDialog, QDoubleSpinBox,
+from PyQt6.QtWidgets import (QAbstractSpinBox, QApplication, QProgressDialog, QCheckBox, QComboBox, QDialog, QDoubleSpinBox,
                              QFileDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPlainTextEdit, QProgressBar, QPushButton, QScrollArea, QSlider,
                              QSpinBox, QSplitter, QTextEdit, QToolButton, QVBoxLayout, QWidget,
                              QMainWindow)
@@ -31,12 +31,14 @@ from magnetstudio.core.sizes import MAGNET_SIZES, PAPER_SIZES, get_size
 from magnetstudio.core.templates import load_template
 from magnetstudio.core.watcher import FolderWatcher
 from magnetstudio.services.print_queue import PrintQueueController, QueueItem, Stage
+from magnetstudio.services.page_builder import PageBuilder
 from magnetstudio.services.printer import (DRY_RUN_PRINTER, PrintJob, PrintMode, get_available_printers,
-                                          is_dry_run, is_printer_available)
+                                          is_dry_run, is_printer_available, media_size_mm)
 from magnetstudio.services.thumbnails import ThumbnailRenderer, ThumbParams
 from magnetstudio.ui.components.photo_grid import PhotoGrid
 from magnetstudio.ui.components.queue_panel import QueueItemStatus, QueuePanel
 from magnetstudio.ui.designer import TemplateDesigner
+from magnetstudio.ui.print_preview import PrintPreviewDialog
 from magnetstudio.ui.settings_dialog import SettingsDialog
 from magnetstudio.ui.theme import ThemeColors
 from magnetstudio.ui.toast import Toast
@@ -112,6 +114,7 @@ class MainWindow(QMainWindow):
         self.toast = Toast(self)
         self._connect_queue()
         self._refresh_printers()
+        self._update_media()
         self.queue_panel.set_total_prints(int(self.settings.get("print_count_total", 0)))
         self._update_counters()
         self._update_summary()
@@ -261,7 +264,15 @@ class MainWindow(QMainWindow):
         upload.setProperty("chip", True)
         upload.clicked.connect(self._open_photo)
 
-        for w in (upload, self.size_box, enhance_btn):
+        self.start_btn = QPushButton()
+        self.start_btn.setProperty("chip", True)
+        self.start_btn.setCheckable(True)
+        self.start_btn.setChecked(int(self.settings.get("start_copies", 1)) == 1)
+        self.start_btn.setToolTip("כמה עותקים מקבלת כל תמונה שמעלים: 1 (מדפיסים הכול) או 0 (בוחרים ידנית)")
+        self.start_btn.toggled.connect(self._toggle_start_copies)
+        self._label_start_btn()
+
+        for w in (upload, self.size_box, self.start_btn, enhance_btn):
             lay.addWidget(w)
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.VLine)
@@ -295,7 +306,7 @@ class MainWindow(QMainWindow):
 
         self.printer_box = QComboBox()
         self.printer_box.currentIndexChanged.connect(self._update_printer_chip)
-        self.printer_box.currentIndexChanged.connect(lambda *_: self._update_summary())
+        self.printer_box.currentIndexChanged.connect(lambda *_: self._update_media())
         refresh_btn = QPushButton("🖨  בחר מדפסת / רענן")
         refresh_btn.setProperty("tonal", True)
         refresh_btn.clicked.connect(self._refresh_printers)
@@ -342,7 +353,13 @@ class MainWindow(QMainWindow):
         self.fill_sheet.setToolTip("במצב דף מגנטים: תמונות מ-Hot Folder מצטברות עד שהדף מתמלא (לא מבזבז נייר)")
 
         self.summary_lbl = QLabel()
-        self.summary_lbl.setObjectName("Dim")
+        self.summary_lbl.setObjectName("SummaryBox")
+        self.summary_lbl.setWordWrap(True)
+        self.summary_lbl.setTextFormat(Qt.TextFormat.RichText)
+        self._media_mm = None
+        self.jpeg_btn = QPushButton("⬇  הורדה (JPEG)")
+        self.jpeg_btn.setToolTip("שמירת דפי ההדפסה כקובצי JPEG לתיקייה")
+        self.jpeg_btn.clicked.connect(lambda: self._print_all(action="jpeg"))
         self.print_btn = QPushButton("🖨  הדפס")
         self.print_btn.setProperty("class", "primary")
         self.print_btn.setProperty("big", True)
@@ -415,6 +432,7 @@ class MainWindow(QMainWindow):
         foot.setContentsMargins(16, 8, 16, 16)
         foot.addWidget(self.summary_lbl)
         foot.addWidget(self.print_btn)
+        foot.addWidget(self.jpeg_btn)
         outer.addLayout(foot)
         self._on_mode_changed(save=False)
         return panel
@@ -544,8 +562,8 @@ class MainWindow(QMainWindow):
         item = self.queue.items[item_id]
         self.queue_panel.add_queue_card(item_id, item.path)
         card = self.grid.add_card(item_id, item.name)
-        if item.source == "hot":
-            card.set_copies(self.copies_box.value())
+        card.set_copies(self.copies_box.value() if item.source == "hot"
+                        else int(self.settings.get("start_copies", 1)))
         self.thumbs.request(item_id, item.path, self._thumb_params())
         self._update_summary()
 
@@ -689,11 +707,33 @@ class MainWindow(QMainWindow):
         sheets = self._sheets_for(copies)
         self.count_lbl.setText(ltr(f"🖼 {photos} תמונות"))
         frames = sum(1 for f in (self.frame_box.currentData(), self.settings.get("frame_landscape")) if f)
-        self.summary_lbl.setText(f"{copies} עותקים · {sheets} דפים" if copies else "בחרו כמות (+) בכרטיסי התמונות")
+        self.summary_lbl.setText(self._summary_html(copies, sheets))
         self.print_btn.setText(f"🖨  הדפס ({copies})" if copies else "🖨  הדפס")
         self._counts_text = f"תמונות: {photos} · עותקים: {copies} · מסגרות: {frames}"
         if hasattr(self, "counts_lbl"):
             self.counts_lbl.setText(self._counts_text)
+
+    def _summary_html(self, copies: int, sheets: int) -> str:
+        """MagnetOti-style summary: total · capacity · pages · free slots on the last page."""
+        C = ThemeColors
+        if not copies:
+            return f"<span style='color:{C.TEXT_MUTED}'>בחרו כמות (+) בכרטיסי התמונות</span>"
+        lines = [f"🖼 סה״כ להדפסה: <b>{copies}</b>"]
+        if self.mode_box.currentData() == PrintMode.SHEET.value:
+            r, c = self.rows_box.value(), self.cols_box.value()
+            per = r * c
+            lines.append(f"▦ קיבולת לדף: {ltr(f'{r}×{c} = {per}')}")
+            lines.append(f"📄 סה״כ עמודים: <b>{sheets}</b>")
+            free = sheets * per - copies
+            if free:
+                lines.append(f"<span style='color:{C.ACCENT_CORAL}'>⚠ יש {free} מקומות פנויים בדף האחרון</span>")
+            else:
+                lines.append(f"<span style='color:{C.ACCENT_MINT}'>✔ אין מקומות פנויים — הדפים מלאים</span>")
+            w, h = self._sheet_size_mm()
+            lines.append(f"<span style='color:{C.TEXT_MUTED}'>גודל דף: {ltr(f'{w:g}×{h:g}')} מ״מ</span>")
+        else:
+            lines.append(f"📄 סה״כ עמודים: <b>{sheets}</b>")
+        return "<br>".join(lines)
 
     def _sheets_for(self, magnets: int) -> int:
         if magnets <= 0:
@@ -722,6 +762,38 @@ class MainWindow(QMainWindow):
         rows, cols = auto_grid(get_size(self.size_box.currentData()).size_px, self.paper_box.currentData())
         self.rows_box.setValue(rows)
         self.cols_box.setValue(cols)
+        self._update_media()
+
+    def _update_media(self) -> None:
+        """The printer driver's real media for the chosen paper (CP-D80DW 6x8 = 158×206 mm)."""
+        paper = PAPER_SIZES[self.paper_box.currentData()]
+        try:
+            self._media_mm = media_size_mm(self.printer_box.currentText(),
+                                           (paper.width_cm * 10, paper.height_cm * 10))
+        except Exception:  # noqa: BLE001 – driver query must never break the UI
+            log.exception("Media size query failed")
+            self._media_mm = None
+        if self._media_mm:
+            log.info("Media for %s on %s: %s mm", paper.key, self.printer_box.currentText(), self._media_mm)
+        self._update_summary()
+
+    def _sheet_size_mm(self) -> tuple[float, float]:
+        paper = PAPER_SIZES[self.paper_box.currentData()]
+        return self._media_mm or (paper.width_cm * 10, paper.height_cm * 10)
+
+    # ---- start copies (1 / 0)
+    def _label_start_btn(self) -> None:
+        self.start_btn.setText("התחל מ1" if self.start_btn.isChecked() else "התחל מ0")
+
+    def _toggle_start_copies(self, on: bool) -> None:
+        old, new = (0, 1) if on else (1, 0)
+        self.settings["start_copies"] = new
+        self._label_start_btn()
+        for item_id, card in self.grid.cards.items():       # untouched cards follow the switch
+            item = self.queue.get(item_id)
+            if card.copies() == old and item is not None and not item.copies_printed:
+                card.set_copies(new)
+        self._update_summary()
 
     def _on_size_changed(self) -> None:
         self._on_paper_changed()
@@ -930,7 +1002,7 @@ class MainWindow(QMainWindow):
     def _layout_opts(self) -> dict:
         return {"paper": self.paper_box.currentData(), "rows": self.rows_box.value(), "cols": self.cols_box.value(),
                 "margins_mm": tuple(b.value() for b in self.margin_boxes), "crop_marks": self.marks_check.isChecked(),
-                "mark_width": self.mark_width_box.currentData(),
+                "mark_width": self.mark_width_box.currentData(), "paper_mm": self._media_mm,
                 "margin_cm": self.settings["a4_margin_cm"], "gap_cm": self.settings["a4_gap_cm"]}
 
     def _make_job(self, photo_path: str | list[str], copies: int | list[int], tag: str = "") -> PrintJob:
@@ -952,20 +1024,72 @@ class MainWindow(QMainWindow):
             tag=tag,
         )
 
-    def _print_all(self) -> None:
-        """Print every card's copies as one job (sheet mode: full sheets, rows × cols)."""
+    def _batch_job(self) -> PrintJob | None:
         batch = self.grid.batch()
+        if not batch and self.grid.selected_id:          # nothing counted → the selected photo ×1
+            batch = [(self.grid.selected_id, 1)]
         if not batch:
-            if self.grid.selected_id:                     # nothing counted → the selected photo
-                self._print_item(self.grid.selected_id)
-                return
             self.toast.show_message("בחרו כמות עותקים בכרטיסי התמונות (+)", "info")
-            return
+            return None
         ids = [i for i, _ in batch]
-        job = self._make_job([self.queue.items[i].path for i in ids], [n for _, n in batch], ",".join(ids))
-        if self.queue.submit(job):
-            n = sum(c for _, c in batch)
-            self.statusBar().showMessage(f"נשלח להדפסה: {n} מגנטים · {self._sheets_for(n)} דפים", 5000)
+        return self._make_job([self.queue.items[i].path for i in ids], [n for _, n in batch], ",".join(ids))
+
+    def _print_all(self, action: str = "preview") -> None:
+        """"Print": build every page (background) → print preview → print the selected pages.
+        action="jpeg": build the pages and save them as JPEG files."""
+        job = self._batch_job()
+        if job is None:
+            return
+        dlg = QProgressDialog("יוצר דפי הדפסה…", "", 0, max(1, len(job.photo_paths)), self)
+        dlg.setWindowTitle("MagnetStudio")
+        dlg.setCancelButton(None)
+        dlg.setMinimumDuration(300)
+        dlg.setWindowModality(Qt.WindowModality.WindowModal)
+        builder = PageBuilder(job, self)
+        builder.progress.connect(lambda d, _t: dlg.setValue(d))
+        builder.failed.connect(lambda msg: (dlg.close(), self._on_failed(f"יצירת הדפים נכשלה: {msg}")))
+        builder.done.connect(lambda pages, owners: (dlg.close(), self._after_pages(job, pages, owners, action)))
+        builder.finished.connect(builder.deleteLater)
+        self._builder = builder
+        builder.start()
+
+    def _after_pages(self, job: PrintJob, pages: list, owners: list, action: str) -> None:
+        if not pages:
+            return
+        if action == "jpeg":
+            self._save_pages_jpeg(pages)
+            return
+        r, c = self.rows_box.value(), self.cols_box.value()
+        w, h = self._sheet_size_mm()
+        sheet = job.mode == PrintMode.SHEET
+        info = {"printer": "PDF (בדיקה)" if is_dry_run(job.printer_name) else job.printer_name,
+                "paper": PAPER_SIZES[self.paper_box.currentData()].label if sheet else self.mode_box.currentText(),
+                "size_mm": (w, h) if sheet else None, "layout": f"{r}×{c}" if sheet else "-", "dpi": 300}
+        preview = PrintPreviewDialog(pages, owners, info, self)
+        if not preview.exec():
+            return
+        if preview.action == "jpeg":
+            self._save_pages_jpeg(preview.selected_pages())
+            return
+        sel_owners = preview.selected_owners()
+        ids = list(dict.fromkeys(o for o in sel_owners if o))
+        pjob = PrintJob(mode=job.mode, printer_name=job.printer_name, images=preview.selected_pages(),
+                        pages_ready=True, magnets=len(sel_owners), tag=",".join(ids),
+                        photo_copies=[sel_owners.count(i) for i in ids], out_dir=job.out_dir,
+                        job_name=job.job_name, layout_opts=job.layout_opts)
+        if self.queue.submit(pjob):
+            n = len(preview.selected_indices())
+            self.statusBar().showMessage(f"נשלח להדפסה: {len(sel_owners)} מגנטים · {n} דפים", 5000)
+
+    def _save_pages_jpeg(self, pages: list) -> None:
+        folder = QFileDialog.getExistingDirectory(self, "בחר תיקייה לשמירת דפי ההדפסה")
+        if not folder:
+            return
+        stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        for i, page in enumerate(pages, 1):
+            page.save(Path(folder) / f"MagnetStudio_{stamp}_{i:03d}.jpg", quality=95, dpi=(300, 300))
+        log.info("Saved %d page(s) as JPEG to %s", len(pages), folder)
+        self.toast.show_message(f"נשמרו {len(pages)} דפים כ-JPEG", "success", 3000)
 
     def _print_current(self) -> None:
         self._print_all()
@@ -992,13 +1116,9 @@ class MainWindow(QMainWindow):
     def _on_succeeded(self, msg: str, magnets: int) -> None:
         job = self.queue.active_job
         if job is not None:
-            self._count_sheets(self._sheets_for(magnets))
-            if job.photo_copies:                      # a batch: those copies are done
-                for item in self.queue.items_of(job):
-                    card = self.grid.cards.get(item.id)
-                    if card is not None:
-                        card.set_copies(0)
-                self._update_summary()
+            # pages actually printed (a preview job may hold a partial selection); copies stay on the
+            # cards like in MagnetOti – the card badge shows "הודפס ×n"
+            self._count_sheets(len(job.images) if job.pages_ready else self._sheets_for(magnets))
         self.settings["print_count_total"] = self.queue.total_printed
         self.queue_panel.increment_print_counter(magnets)
         self.persist_settings("print done")  # counter on disk right away

@@ -96,3 +96,27 @@ def test_adjustments_filter():
     assert f(img).getpixel((5, 5))[0] > 100
     f = make_enhance_filter({"enhance": True, "exposure": -40})
     assert f(img).getpixel((5, 5))[0] < 140
+
+
+def test_driver_media_size(qapp, monkeypatch):
+    """Mitsubishi CP-D80DW's 6x8 media is 158×206 mm – the sheet is laid out on the real media."""
+    from PyQt6.QtCore import QSizeF
+    from PyQt6.QtGui import QPageSize
+
+    import magnetstudio.services.printer as pr
+
+    class FakeInfo:
+        def isNull(self):
+            return False
+
+        def supportedPageSizes(self):
+            mm = QPageSize.Unit.Millimeter
+            return [QPageSize(QPageSize.PageSizeId.A4), QPageSize(QSizeF(158, 206), mm, "6x8"),
+                    QPageSize(QSizeF(102, 152), mm, "4x6")]
+
+    monkeypatch.setattr(pr.QPrinterInfo, "printerInfo", staticmethod(lambda name: FakeInfo()))
+    assert pr.media_size_mm("CP-D80DW", (152, 203)) == (158.0, 206.0)
+    assert pr.media_size_mm("CP-D80DW", (89, 127)) is None, "no 3.5x5 media → nominal size"
+    assert pr.media_size_mm(pr.DRY_RUN_PRINTER, (152, 203)) is None
+    page = build_grid_sheets([Image.new("RGB", get_size("7.5x10").size_px)], paper="15x20", paper_mm=(158, 206))[0]
+    assert page.size == (mm_to_px(158), mm_to_px(206))

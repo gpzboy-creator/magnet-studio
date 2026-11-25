@@ -35,6 +35,21 @@ def is_dry_run(printer_name: str | None) -> bool:
 
 
 
+def magnets_per_page(mode: PrintMode, magnet_px: tuple[int, int] | None = None, **layout_opts) -> int:
+    """How many magnets one printed page holds in this mode."""
+    if mode == PrintMode.THERMAL:
+        return 1
+    if mode == PrintMode.SHEET:
+        from magnetstudio.core.layout import SheetSpec
+        return SheetSpec.from_opts(layout_opts).per_sheet
+    from magnetstudio.core.layout import plan_grid
+    try:
+        return plan_grid(magnet_px or (886, 1181), layout_opts.get("margin_cm", 0.3),
+                         layout_opts.get("gap_cm", 0.2)).per_page
+    except ValueError:
+        return 1
+
+
 def build_pages(images: list[Image.Image], mode: PrintMode, **layout_opts) -> list[Image.Image]:
     """Sheet: rows × cols grid. Thermal: one page per magnet. A4: best-fit sheets."""
     if mode == PrintMode.THERMAL:
@@ -72,6 +87,8 @@ class PrintJob:
     frame_path: str | Path | None = None
     frame_landscape_path: str | Path | None = None   # PNG for landscape photos (frame_path = portrait)
     photo_copies: list[int] = field(default_factory=list)   # per photo; overrides `copies` when given
+    pages_ready: bool = False        # `images` are finished printer pages (from the print preview)
+    magnets: int | None = None       # magnet count when pages_ready (for the counters)
     photo_filter: object = None      # e.g. the print enhancer, applied after crop, before frame
     copies: int = 1
     out_dir: str | Path = ""        # "" → paths.default_output_dir()
@@ -85,13 +102,35 @@ class PrintJob:
         return max(1, self.copies)
 
     def magnet_count(self) -> int:
+        if self.magnets is not None:
+            return self.magnets
         if self.photo_copies and self.photo_paths:
             return len(self.images) * max(1, self.copies) + sum(self._copies_for(i) for i in range(len(self.photo_paths)))
         n = len(self.images) + (1 if self.photo_paths and str(self.frame_path or "").lower().endswith(".json")
                                 else len(self.photo_paths))
         return n * max(1, self.copies)
 
+    def render_with_owners(self, progress=None) -> tuple[list[Image.Image], list[str]]:
+        """Every magnet to print and the card id it belongs to (tag "id1,id2,…" ↔ photo_paths).
+        Each photo is rendered once; its copies are the same image object, so they sit side by side."""
+        from magnetstudio.core.framer import render_magnet
+        ids = self.tag.split(",") if self.tag else []
+        imgs, owners = [], []
+        total = len(self.photo_paths)
+        for i, p in enumerate(self.photo_paths):
+            n = self._copies_for(i)
+            if n:
+                magnet = render_magnet(p, self.magnet_size, self.frame_path, self.photo_filter,
+                                       frame_landscape=self.frame_landscape_path)
+                imgs += [magnet] * n
+                owners += [ids[i] if i < len(ids) else ""] * n
+            if progress:
+                progress(i + 1, total)
+        return imgs, owners
+
     def render_images(self) -> list[Image.Image]:
+        if self.pages_ready:
+            return list(self.images)
         out = [img for img in self.images for _ in range(max(1, self.copies))]
         if not self.photo_paths:
             return out

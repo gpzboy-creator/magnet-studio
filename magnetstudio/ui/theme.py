@@ -479,6 +479,17 @@ def app_qss() -> str:
     QPushButton#UploadBig {{ padding: 12px; font-size: 15px; border-radius: 12px; }}
     #BottomBar {{ background: {C.BG_CARD}; border-top: 1px solid {C.BORDER_SUBTLE}; }}
     #SliderBox {{ border: 1px solid {C.BORDER_SUBTLE}; border-radius: 12px; }}
+    #SummaryBox {{ background: {C.BG_ELEVATED}; border: 1px solid {C.BORDER_SUBTLE}; border-radius: 10px;
+                   padding: 8px 10px; color: {C.TEXT_SECONDARY}; }}
+    #PreviewHead, #PreviewFoot {{ background: {C.BG_CARD}; border-bottom: 1px solid {C.BORDER_SUBTLE}; }}
+    #PreviewFoot {{ border-bottom: none; border-top: 1px solid {C.BORDER_SUBTLE}; }}
+    #PageTile {{ background: transparent; border: 2px solid transparent; border-radius: 10px; }}
+    #PageTile[selected="true"] {{ border-color: {C.ACCENT_CYAN}; background: {C.BG_HIGHLIGHT}; }}
+    #PageCaption {{ background: {C.BG_HIGHLIGHT}; color: {C.ACCENT_CYAN}; border-radius: 10px; padding: 3px 10px;
+                    font-size: 12px; font-weight: 600; }}
+    #PageCheck {{ background: {C.ACCENT_CYAN}; color: {C.TEXT_ON_ACCENT}; border-radius: 14px; font-weight: 800; }}
+    #InfoRow {{ background: {C.BG_ELEVATED}; border: 1px solid {C.BORDER_SUBTLE}; border-radius: 10px; }}
+    #InfoValue {{ font-weight: 700; color: {C.TEXT_PRIMARY}; }}
     QSlider::groove:horizontal {{ height: 4px; background: {C.BORDER_SUBTLE}; border-radius: 2px; }}
     QSlider::sub-page:horizontal {{ background: {C.ACCENT_CYAN}; border-radius: 2px; }}
     QSlider::handle:horizontal {{ background: {C.ACCENT_CYAN}; width: 14px; height: 14px; margin: -5px 0; border-radius: 7px; }}

@@ -71,6 +71,7 @@ magnetstudio/
     print_queue.py      PrintQueueController + Stage + QueueItem – כל מצב התור
     printer.py          זיהוי מדפסות, PrintWorker (QThread), QPainter→QPrinter, Dry Run ל-PDF
     thumbnails.py       רינדור תמונות ממוזערות ברקע (generation, נסגר כשאין עבודה)
+    page_builder.py     בניית דפי הדפסה ברקע לתצוגה מקדימה / JPEG (דף → כרטיסים)
     enhancement_worker.py, generator_worker.py, fonts_qt.py
   ui/                   PyQt6 widgets בלבד
     main_window.py      חלון ראשי בסגנון MagnetOti: רשת תמונות + פאנל הדפסה + תור חי; בונה PrintJob (job_factory)
@@ -78,6 +79,7 @@ magnetstudio/
     widgets.py          ltr(), make_thumb()
     components/photo_grid.py   PhotoGrid + PhotoCard (מגנט מוגמר, ☆, תג, − n +)
     components/queue_panel.py  QueuePanel (התור החי, "⚡ תור חי") + QueueCardWidget + ReprintGuard
+    print_preview.py    תצוגה מקדימה להדפסה: בחירת דפים, טווח, זום, סיכום, הדפסה / JPEG
     designer.py, frame_generator_dialog.py, settings_dialog.py, toast.py
   assets/               לקריאה בלבד: fonts/, templates/ (sample_*), ui/ (SVG)
 tests/                  pytest; conftest מבודד (תיקיית בית זמנית + keyring בזיכרון)
@@ -162,10 +164,13 @@ python packaging/build.py                               # → dist/MagnetStudio/
 הרצה ובנייה על Windows/Mac (נבנה ונבדק רק על Linux) · מיגרציה מהתקנה ישנה אמיתית של שחר.
 
 **מסך ראשי חדש (25.11):** בסגנון MagnetOti – רשת כרטיסים עם עותקים לכל תמונה, הדפסת דפי 15x20 (2×2), זוג מסגרות PNG,
-מחוונים, מוני דפים/עלות, בהיר/כהה/אוטומטי, תור חי כפאנל אופציונלי. 38 בדיקות עוברות.
+מחוונים, מוני דפים/עלות, בהיר/כהה/אוטומטי, תור חי כפאנל אופציונלי.
+**זרימת הדפסה (25.11):** הדפס → בניית דפים ברקע → תצוגה מקדימה עם בחירת דפים → הדפסה / JPEG · סיכום "מקומות פנויים" ·
+"התחל מ1/מ0" · גודל מדיה מהדרייבר (158×206) · כמויות נשארות אחרי הדפסה. 41 בדיקות עוברות.
 
 **הבא בתור (הצעות):**
-0. שחר: לבדוק את המסך החדש בתצוגה החיה / במפעיל, ולהגיד מה לשנות. אחר כך: הדפסה אמיתית ב-CP-D80DW.
+0. שחר: לבדוק את המסך והתצוגה המקדימה, ולהדפיס דף אמיתי ב-CP-D80DW (לוודא 158×206 וגבולות). אחר כך מ-MagnetOti:
+   מסך "הגדלות" (תמונות בכוכב בגודל אחר) · Gamma · כפתור Properties של הדרייבר.
 1. **ניקוד עברי נחתך ב-Windows** (נמצא ב-CI: 0.2–1% דיו + יישור לימין) – לבדוק libraqm/python-bidi ב-Windows ולתקן.
    + לתקן את `test_fonts` (גופן "תורם" לפי מערכת הפעלה; לא לפתוח דיאלוג) ואת סף הזמן ב-`test_ai_enhancer`.
 2. לפתוח את התצוגה החיה ב-Codespaces בפעם הראשונה ולוודא שעולה (setup.sh לא נבדק ב-Codespaces אמיתי; הקלדה בעברית ב-noVNC).
